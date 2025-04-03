@@ -20,15 +20,15 @@ import io
 import requests
 from telethon.tl.types import Message
 from .. import loader, utils
+from PIL import Image
 
 # Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
-from PIL import Image
 Image.ANTIALIAS = Image.LANCZOS
 
 
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Hikimuro"""
+    """Create beautiful code images. Edited by @Penggrin"""
 
     strings = {
         "name": "Carbon",
@@ -37,7 +37,7 @@ class CarbonMod(loader.Module):
     }
 
     strings_ru = {
-        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
+        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Penggrin",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
     }
@@ -113,7 +113,7 @@ class CarbonMod(loader.Module):
         # Проверка длины кода
         if len(args) > 150:
             # Если длина больше 150 символов, отправляем как файл
-            await self.client.send_message(
+            await self.client.send_file(
                 utils.get_chat_id(message),
                 file=doc,
                 force_document=True,
@@ -123,7 +123,7 @@ class CarbonMod(loader.Module):
             # Если длина меньше или равна 150 символам, отправляем как сообщение
             await self.client.send_message(
                 utils.get_chat_id(message),
-                text=args,
+                message=args,  # Здесь мы передаем код как сообщение
                 reply_to=reply,
             )
 
