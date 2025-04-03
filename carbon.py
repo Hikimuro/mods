@@ -18,12 +18,13 @@
 
 import io
 import requests
+from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Hikimuro"""
+    """Create beautiful code images. Edited by @Penggrin"""
 
     strings = {
         "name": "Carbon",
