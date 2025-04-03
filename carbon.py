@@ -17,17 +17,16 @@
 
 import io
 import requests
-from PIL import Image  # Импортируем PIL для работы с изображениями
+from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
 # Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
 Image.ANTIALIAS = Image.LANCZOS
 
-
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Hikimuro"""
+    """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
 
     strings = {
         "name": "Carbon",
@@ -43,55 +42,21 @@ class CarbonMod(loader.Module):
 
     def __init__(self):
         self.config = loader.ModuleConfig(
-            loader.ConfigValue(
-                "theme",
-                "vsc-dark-plus",
-                "Theme from clck.ru/33HUNM",
-                validator=loader.validators.String()
-            ),
-            loader.ConfigValue(
-                "color",
-                "gray",
-                "Background color",
-                validator=loader.validators.String()
-            ),
-            loader.ConfigValue(
-                "language",
-                "python",
-                "Programming language",
-                validator=loader.validators.String()
-            ),
-            loader.ConfigValue(
-                "max_code_length_for_document",
-                1000,
-                "Maximum number of characters in code to send as a document",
-                validator=loader.validators.Integer()
-            ),
+            loader.ConfigValue("theme", "vsc-dark-plus", "Тема оформления", validator=loader.validators.String()),
+            loader.ConfigValue("color", "gray", "Цвет фона", validator=loader.validators.String()),
+            loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
+            loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer())
         )
 
-    @loader.command(ru_doc="<код> - Сделать красивую фотку кода")
     async def carboncmd(self, message: Message):
-        """<code> - Create beautiful code image"""
+        """Создание изображения кода"""
         args = utils.get_args_raw(message)
 
-        # Попытка получить код из вложенного сообщения
-        try:
-            code_from_message = (
-                await self._client.download_file(message.media, bytes)
-            ).decode("utf-8")
-        except Exception:
-            code_from_message = ""
+        # Попытка получить код из вложений сообщения или ответа
+        code_from_message = await self._get_code_from_media(message)
+        code_from_reply = await self._get_code_from_media(await message.get_reply_message())
 
-        # Попытка получить код из ответа на сообщение
-        try:
-            reply = await message.get_reply_message()
-            code_from_reply = (
-                await self._client.download_file(reply.media, bytes)
-            ).decode("utf-8")
-        except Exception:
-            code_from_reply = ""
-
-        # Если аргументы не были найдены, используем код из сообщения или ответа
+        # Если код не передан через аргументы, используем код из вложений
         args = args or code_from_message or code_from_reply
 
         if not args:
@@ -102,25 +67,13 @@ class CarbonMod(loader.Module):
         message = await utils.answer(message, self.strings("loading"))
 
         # Запрашиваем изображение с сайта
-        doc = io.BytesIO(
-            (
-                await utils.run_sync(
-                    requests.post,
-                    f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}',
-                    headers={"content-type": "text/plain"},
-                    data=bytes(args, "utf-8"),
-                )
-            ).content
-        )
-        doc.name = "carbonized.jpg"
+        doc = await self._generate_code_image(args)
 
-        # Получаем реплай или текущую тему сообщения
+        # Получаем информацию о том, нужно ли отправить как документ
+        force_document = len(args) > self.config["max_code_length_for_document"]
         reply = utils.get_topic(message) or await message.get_reply_message()
 
-        # Проверяем длину кода, используем настройку max_code_length_for_document
-        force_document = len(args) > self.config["max_code_length_for_document"]
-
-        # Отправляем изображение как файл, если код слишком длинный
+        # Отправляем изображение как файл
         await self.client.send_file(
             utils.get_chat_id(message),
             file=doc,
@@ -130,3 +83,22 @@ class CarbonMod(loader.Module):
 
         # Удаляем сообщение с текстом "Loading..."
         await message.delete()
+
+    async def _get_code_from_media(self, message: Message) -> str:
+        """Получение кода из медиа-сообщения"""
+        try:
+            return (await self._client.download_file(message.media, bytes)).decode("utf-8")
+        except Exception:
+            return ""
+
+    async def _generate_code_image(self, code: str) -> io.BytesIO:
+        """Генерация изображения с кодом"""
+        response = await utils.run_sync(
+            requests.post,
+            f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}',
+            headers={"content-type": "text/plain"},
+            data=bytes(code, "utf-8")
+        )
+        img_data = io.BytesIO(response.content)
+        img_data.name = "carbonized.jpg"
+        return img_data
