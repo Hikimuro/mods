@@ -27,7 +27,7 @@ Image.ANTIALIAS = Image.LANCZOS
 
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Hikimuro"""
+    """Create beautiful code images. Edited by @Penggrin"""
 
     strings = {
         "name": "Carbon",
@@ -36,7 +36,7 @@ class CarbonMod(loader.Module):
     }
 
     strings_ru = {
-        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
+        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Penggrin",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
     }
@@ -109,9 +109,8 @@ class CarbonMod(loader.Module):
 
         reply = utils.get_topic(message) or await message.get_reply_message()
 
-        # Проверка длины кода
+        # Если длина сообщения больше 150 символов, отправляем как файл
         if len(args) > 150:
-            # Если длина больше 150 символов, отправляем как файл
             await self.client.send_file(
                 utils.get_chat_id(message),
                 file=doc,
@@ -119,10 +118,10 @@ class CarbonMod(loader.Module):
                 reply_to=reply,
             )
         else:
-            # Если длина меньше или равна 150 символам, отправляем как сообщение
-            await self.client.send_message(
+            # Иначе отправляем изображение как фото
+            await self.client.send_file(
                 utils.get_chat_id(message),
-                message=args,  # Параметр 'message' вместо 'text'
+                file=doc,
                 reply_to=reply,
             )
 
