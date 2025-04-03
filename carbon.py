@@ -15,7 +15,6 @@
 # scope: hikka_min 1.2.10
 # requires: urllib requests
 
-
 import io
 import requests
 from telethon.tl.types import Message
@@ -28,7 +27,7 @@ Image.ANTIALIAS = Image.LANCZOS
 
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Penggrin"""
+    """Create beautiful code images. Edited by @Hikimuro"""
 
     strings = {
         "name": "Carbon",
@@ -37,7 +36,7 @@ class CarbonMod(loader.Module):
     }
 
     strings_ru = {
-        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Penggrin",
+        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
     }
@@ -123,7 +122,7 @@ class CarbonMod(loader.Module):
             # Если длина меньше или равна 150 символам, отправляем как сообщение
             await self.client.send_message(
                 utils.get_chat_id(message),
-                message=args,  # Здесь мы передаем код как сообщение
+                message=args,  # Параметр 'message' вместо 'text'
                 reply_to=reply,
             )
 
