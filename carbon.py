@@ -6,7 +6,7 @@
 # 🔒      Licensed under the GNU AGPLv3
 # 🌐 https://www.gnu.org/licenses/agpl-3.0.html
 
-# edited by @Penggrin
+# edited by @Hikimuro
 
 # meta pic: https://img.icons8.com/stickers/500/000000/code.png
 # meta banner: https://mods.hikariatama.ru/badges/carbon.jpg
