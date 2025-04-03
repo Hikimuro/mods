@@ -17,9 +17,9 @@
 
 import io
 import requests
+from PIL import Image  # Импортируем PIL для работы с изображениями
 from telethon.tl.types import Message
 from .. import loader, utils
-from PIL import Image
 
 # Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
 Image.ANTIALIAS = Image.LANCZOS
@@ -68,7 +68,7 @@ class CarbonMod(loader.Module):
         """<code> - Create beautiful code image"""
         args = utils.get_args_raw(message)
 
-        # Попытка получить код из вложенного сообщения или из ответа
+        # Попытка получить код из вложенного сообщения
         try:
             code_from_message = (
                 await self._client.download_file(message.media, bytes)
@@ -76,6 +76,7 @@ class CarbonMod(loader.Module):
         except Exception:
             code_from_message = ""
 
+        # Попытка получить код из ответа на сообщение
         try:
             reply = await message.get_reply_message()
             code_from_reply = (
@@ -84,17 +85,17 @@ class CarbonMod(loader.Module):
         except Exception:
             code_from_reply = ""
 
-        # Если аргументы не были найдены, используем сообщение или ответ
+        # Если аргументы не были найдены, используем код из сообщения или ответа
         args = args or code_from_message or code_from_reply
 
         if not args:
             await utils.answer(message, self.strings("args"))
             return
 
-        # Ответ с текстом "Loading..." во время обработки
+        # Отправляем сообщение "Loading..." во время обработки
         message = await utils.answer(message, self.strings("loading"))
 
-        # Получение изображения с сайта
+        # Запрашиваем изображение с сайта
         doc = io.BytesIO(
             (
                 await utils.run_sync(
@@ -107,23 +108,16 @@ class CarbonMod(loader.Module):
         )
         doc.name = "carbonized.jpg"
 
+        # Получаем реплай или текущую тему сообщения
         reply = utils.get_topic(message) or await message.get_reply_message()
 
-        # Если длина сообщения больше 150 символов, отправляем как файл
-        if len(args) > 150:
-            await self.client.send_file(
-                utils.get_chat_id(message),
-                file=doc,
-                force_document=True,
-                reply_to=reply,
-            )
-        else:
-            # Иначе отправляем изображение как фото
-            await self.client.send_file(
-                utils.get_chat_id(message),
-                file=doc,
-                reply_to=reply,
-            )
+        # Отправляем изображение как файл, если количество строк больше 35
+        await self.client.send_file(
+            utils.get_chat_id(message),
+            file=doc,
+            force_document=(len(args.splitlines()) > 35),
+            reply_to=reply,
+        )
 
-        # Удаляем сообщение о загрузке
+        # Удаляем сообщение с текстом "Loading..."
         await message.delete()
