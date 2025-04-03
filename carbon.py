@@ -18,79 +18,114 @@
 
 import io
 import requests
-from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
+# Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
+from PIL import Image
+Image.ANTIALIAS = Image.LANCZOS
+
+
 @loader.tds
 class CarbonMod(loader.Module):
-    """Create beautiful code images. Edited by @Penggrin"""
+    """Create beautiful code images. Edited by @Hikimuro"""
 
     strings = {
         "name": "Carbon",
-        "args": "🚫 <b>No code specified!</b>",
-        "loading": "⏳ <b>Loading...</b>",
-        "error": "❌ <b>Failed to generate image!</b>",
+        "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>No code specified!</b>",
+        "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Loading...</b>",
     }
 
     strings_ru = {
-        "_cls_doc": "Создает красивые изображения кода. Отредактировано @Penggrin",
-        "args": "🚫 <b>Не указан код!</b>",
-        "loading": "⏳ <b>Обработка...</b>",
-        "error": "❌ <b>Ошибка генерации изображения!</b>",
+        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
+        "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
+        "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
     }
 
     def __init__(self):
         self.config = loader.ModuleConfig(
-            loader.ConfigValue("theme", "vsc-dark-plus", "Theme", validator=loader.validators.String()),
-            loader.ConfigValue("color", "gray", "Background color", validator=loader.validators.String()),
-            loader.ConfigValue("language", "python", "Programming language", validator=loader.validators.String()),
+            loader.ConfigValue(
+                "theme",
+                "vsc-dark-plus",
+                "Theme from clck.ru/33HUNM",
+                validator=loader.validators.String()
+            ),
+            loader.ConfigValue(
+                "color",
+                "gray",
+                "Background color",
+                validator=loader.validators.String()
+            ),
+            loader.ConfigValue(
+                "language",
+                "python",
+                "Programming language",
+                validator=loader.validators.String()
+            ),
         )
 
-    @loader.command(ru_doc="<код> - Создать красивое изображение кода")
+    @loader.command(ru_doc="<код> - Сделать красивую фотку кода")
     async def carboncmd(self, message: Message):
-        """<code> - Create a beautiful code image"""
+        """<code> - Create beautiful code image"""
         args = utils.get_args_raw(message)
 
-        code = args or await self._extract_code_from_message(message)
-        if not code:
+        # Попытка получить код из вложенного сообщения или из ответа
+        try:
+            code_from_message = (
+                await self._client.download_file(message.media, bytes)
+            ).decode("utf-8")
+        except Exception:
+            code_from_message = ""
+
+        try:
+            reply = await message.get_reply_message()
+            code_from_reply = (
+                await self._client.download_file(reply.media, bytes)
+            ).decode("utf-8")
+        except Exception:
+            code_from_reply = ""
+
+        # Если аргументы не были найдены, используем сообщение или ответ
+        args = args or code_from_message or code_from_reply
+
+        if not args:
             await utils.answer(message, self.strings("args"))
             return
 
-        await utils.answer(message, self.strings("loading"))
-        image = await self._generate_image(code)
-        if not image:
-            await utils.answer(message, self.strings("error"))
-            return
+        # Ответ с текстом "Loading..." во время обработки
+        message = await utils.answer(message, self.strings("loading"))
 
-        await self.client.send_file(
-            utils.get_chat_id(message),
-            file=image,
-            force_document=(len(code.splitlines()) > 35),
-            reply_to=await message.get_reply_message(),
+        # Получение изображения с сайта
+        doc = io.BytesIO(
+            (
+                await utils.run_sync(
+                    requests.post,
+                    f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}',
+                    headers={"content-type": "text/plain"},
+                    data=bytes(args, "utf-8"),
+                )
+            ).content
         )
-        await message.delete()
+        doc.name = "carbonized.jpg"
 
-    async def _extract_code_from_message(self, message: Message) -> str:
-        try:
-            return (await self._client.download_file(message.media, bytes)).decode("utf-8")
-        except Exception:
-            try:
-                reply = await message.get_reply_message()
-                return (await self._client.download_file(reply.media, bytes)).decode("utf-8")
-            except Exception:
-                return ""
+        reply = utils.get_topic(message) or await message.get_reply_message()
 
-    async def _generate_image(self, code: str) -> io.BytesIO:
-        try:
-            response = await utils.run_sync(
-                requests.post,
-                f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}',
-                headers={"content-type": "text/plain"},
-                data=code.encode("utf-8"),
+        # Проверка длины кода
+        if len(args) > 150:
+            # Если длина больше 150 символов, отправляем как файл
+            await self.client.send_message(
+                utils.get_chat_id(message),
+                file=doc,
+                force_document=True,
+                reply_to=reply,
             )
-            image = io.BytesIO(response.content)
-            image.name = "carbonized.jpg"
-            return image
-        except Exception:
-            return None
+        else:
+            # Если длина меньше или равна 150 символам, отправляем как сообщение
+            await self.client.send_message(
+                utils.get_chat_id(message),
+                text=args,
+                reply_to=reply,
+            )
+
+        # Удаляем сообщение о загрузке
+        await message.delete()
