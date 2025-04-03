@@ -1,3 +1,21 @@
+#             █ █ ▀ █▄▀ ▄▀█ █▀█ ▀
+#             █▀█ █ █ █ █▀█ █▀▄ █
+#              © Copyright 2022
+#           https://t.me/hikariatama
+#
+# 🔒      Licensed under the GNU AGPLv3
+# 🌐 https://www.gnu.org/licenses/agpl-3.0.html
+
+# edited by @Penggrin
+
+# meta pic: https://img.icons8.com/stickers/500/000000/code.png
+# meta banner: https://mods.hikariatama.ru/badges/carbon.jpg
+# meta developer: @hikarimods
+# scope: hikka_only
+# scope: hikka_min 1.2.10
+# requires: urllib requests
+
+
 import io import requests from telethon.tl.types import Message from .. import loader, utils
 
 @loader.tds class CarbonMod(loader.Module): """Create beautiful code images. Edited by @Penggrin"""
