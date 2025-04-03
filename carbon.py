@@ -111,11 +111,14 @@ class CarbonMod(loader.Module):
         # Получаем реплай или текущую тему сообщения
         reply = utils.get_topic(message) or await message.get_reply_message()
 
-        # Отправляем изображение как файл, если количество строк больше 35
+        # Если длина текста больше 200 символов, отправляем как файл
+        force_document = len(args) > 200
+
+        # Отправляем изображение
         await self.client.send_file(
             utils.get_chat_id(message),
             file=doc,
-            force_document=(len(args.splitlines()) > 35),
+            force_document=force_document,
             reply_to=reply,
         )
 
