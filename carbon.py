@@ -61,6 +61,12 @@ class CarbonMod(loader.Module):
                 "Programming language",
                 validator=loader.validators.String()
             ),
+            loader.ConfigValue(
+                "max_code_length_for_document",
+                1000,
+                "Maximum number of characters in code to send as a document",
+                validator=loader.validators.Integer()
+            ),
         )
 
     @loader.command(ru_doc="<код> - Сделать красивую фотку кода")
@@ -111,11 +117,14 @@ class CarbonMod(loader.Module):
         # Получаем реплай или текущую тему сообщения
         reply = utils.get_topic(message) or await message.get_reply_message()
 
-        # Отправляем изображение как файл, если количество символов больше 1000 символов
+        # Проверяем длину кода, используем настройку max_code_length_for_document
+        force_document = len(args) > self.config["max_code_length_for_document"]
+
+        # Отправляем изображение как файл, если код слишком длинный
         await self.client.send_file(
             utils.get_chat_id(message),
             file=doc,
-            force_document=(len(args) > 1000),
+            force_document=force_document,
             reply_to=reply,
         )
 
