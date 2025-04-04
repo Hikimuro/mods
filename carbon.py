@@ -40,9 +40,6 @@ class CustomFilter(logging.Filter):
 # Добавление кастомного фильтра
 logger.addFilter(CustomFilter())
 
-# Пример использования
-logger.error("Ошибка запроса к API Code2Img: URL=%s, Ошибка: %s", "https://example.com", "504 Gateway Timeout")
-
 class CarbonMod(loader.Module):
     """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
 
