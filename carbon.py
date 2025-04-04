@@ -17,21 +17,6 @@
 
 import subprocess
 import sys
-
-# Функция для установки зависимостей
-def install_dependencies():
-    required_libraries = ["requests", "urllib3"]
-    for library in required_libraries:
-        try:
-            __import__(library)
-        except ImportError:
-            print(f"Библиотека {library} не найдена. Устанавливаю...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", library])
-
-# Вызов функции установки зависимостей
-install_dependencies()
-
-import io
 import logging
 import aiohttp
 from PIL import Image, ImageDraw
@@ -42,6 +27,19 @@ from telethon.tl.types import Message
 from .. import loader, utils
 
 logger = logging.getLogger(__name__)
+
+# Функция для установки зависимостей
+def install_dependencies():
+    required_libraries = ["requests", "urllib3", "pygments"]
+    for library in required_libraries:
+        try:
+            __import__(library)
+        except ImportError:
+            print(f"Библиотека {library} не найдена. Устанавливаю...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", library])
+
+# Вызов функции установки зависимостей
+install_dependencies()
 
 @loader.tds
 class CarbonMod(loader.Module):
@@ -125,13 +123,18 @@ class CarbonMod(loader.Module):
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}'
         headers = {"content-type": "text/plain"}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
-                if response.status != 200:
-                    raise aiohttp.ClientError("Bad response from API")
-                img_data = io.BytesIO(await response.read())
-                img_data.name = "carbonized.jpg"
-                return img_data
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
+                    if response.status != 200:
+                        logger.error(f"Ошибка от API: {response.status}")
+                        raise aiohttp.ClientError(f"Bad response from API: {response.status}")
+                    img_data = io.BytesIO(await response.read())
+                    img_data.name = "carbonized.jpg"
+                    return img_data
+        except Exception as e:
+            logger.exception("Ошибка при запросе к API: %s", e)
+            raise
 
     def _generate_local_image(self, code: str) -> io.BytesIO:
         try:
