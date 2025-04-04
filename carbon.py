@@ -68,7 +68,9 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("theme", "vsc-dark-plus", "Тема оформления", validator=loader.validators.String()),
             loader.ConfigValue("color", "gray", "Цвет фона", validator=loader.validators.String()),
             loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
-            loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer())
+            loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer()),
+            loader.ConfigValue("background_image", "", "URL фона изображения (необязательно)", validator=loader.validators.String()),
+            loader.ConfigValue("scale", 2, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
         )
 
     async def carboncmd(self, message: Message):
@@ -112,18 +114,30 @@ class CarbonMod(loader.Module):
             return ""
 
         try:
-            return (await self._client.download_file(message.media, bytes)).decode("utf-8")
+            # Попытка скачать файл и преобразовать его в строку
+            return (await self.client.download_file(message.media, bytes)).decode("utf-8")
         except Exception as e:
             logger.warning(f"Ошибка при получении кода из медиа-сообщения. Сообщение: {message.id}, Ошибка: {str(e)}")
             return ""
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         """Генерация изображения с кодом (асинхронная версия)"""
+        # Формирование базового URL для запроса API
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}'
+
+        # Если задан URL фона, добавляем его в запрос
+        if self.config["background_image"]:
+            url += f"&background-image={self.config['background_image']}"
+
+        # Добавляем параметр scale для масштабирования изображения
+        url += f"&scale={self.config['scale']}"
+
         headers = {"content-type": "text/plain"}
 
+        # Создаем сессию для отправки запроса
         async with aiohttp.ClientSession() as session:
             try:
+                # Отправка POST-запроса с кодом
                 async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
                     response.raise_for_status()  # Автоматически выбросит исключение, если статус != 200
                     img_data = io.BytesIO(await response.read())
