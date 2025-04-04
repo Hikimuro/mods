@@ -18,35 +18,35 @@
 import io
 import aiohttp
 import logging
-from PIL import Image, ImageOps
+from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
-# Настройка логирования с фильтрацией повторений и уровнями
+# Настройка логирования
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
+logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
+@loader.tds
 class CarbonMod(loader.Module):
-    """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
+    """Создает симпатичные фотки кода"""
 
     strings = {
         "name": "Carbon",
-        "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
-        "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
+        "args": "<b>Не указан код!</b>",
+        "loading": "<b>Обработка...</b>",
     }
 
     def __init__(self):
         self.config = loader.ModuleConfig(
-            loader.ConfigValue("theme", "vsc-dark-plus", "Тема оформления", validator=loader.validators.String()),
-            loader.ConfigValue("color", "gray", "Цвет фона", validator=loader.validators.String()),
-            loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
-            loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer()),
-            loader.ConfigValue("background_image", "", "URL фона изображения (необязательно)", validator=loader.validators.String()),
-            loader.ConfigValue("scale", 2, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
+            loader.ConfigValue("theme", "vsc-dark-plus", "Тема оформления"),
+            loader.ConfigValue("color", "gray", "Цвет фона"),
+            loader.ConfigValue("language", "python", "Язык программирования"),
+            loader.ConfigValue("background_image", "", "Фоновое изображение"),
+            loader.ConfigValue("scale", 2, "Масштаб изображения"),
         )
 
     async def carboncmd(self, message: Message):
@@ -54,126 +54,76 @@ class CarbonMod(loader.Module):
         code = await self._get_code_from_sources(message)
 
         if not code:
-            await utils.answer(message, self.strings("args"))
+            await utils.answer(message, self.strings["args"])
             return
 
-        loading_message = await utils.answer(message, self.strings("loading"))
+        loading_message = await utils.answer(message, self.strings["loading"])
         try:
             doc = await self._generate_code_image(code)
+            doc = await self._apply_background(doc)
+
             await self.client.send_file(
                 utils.get_chat_id(message),
                 file=doc,
-                force_document=self._should_send_as_document(code),
+                force_document=False,
                 reply_to=utils.get_topic(message) or await message.get_reply_message(),
             )
         except Exception as e:
-            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
+            logger.error(f"Ошибка при создании изображения: {str(e)}")
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
             await loading_message.delete()
 
-    async def _get_code_from_sources(self, message: Message) -> str:
-        """Получение кода из различных источников"""
-        code_sources = [
-            utils.get_args_raw(message),
-            await self._get_code_from_media(message),
-            await self._get_code_from_media(await message.get_reply_message())
-        ]
-        return next((c for c in code_sources if c), None)
-
-    async def _get_code_from_media(self, message: Message) -> str:
-        """Получение кода из медиа-сообщения"""
-        if not message or not getattr(message, "document", None):
-            return ""
-
-        if not message.document.mime_type.startswith("text/"):
-            return ""
-
-        try:
-            return (await self.client.download_file(message.media, bytes)).decode("utf-8")
-        except Exception as e:
-            logger.warning(f"Ошибка при получении кода из медиа-сообщения. Сообщение: {message.id}, Ошибка: {str(e)}")
-            return ""
-
     async def _generate_code_image(self, code: str) -> io.BytesIO:
-        """Генерация изображения с кодом (асинхронная версия)"""
-        url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}'
-
-        # Если задан URL фона, скачиваем и масштабируем фон
-        if self.config["background_image"]:
-            background_image_url = self.config["background_image"]
-            url += f"&background-image={background_image_url}"
-
-        # Добавляем параметр scale
-        url += f"&scale={self.config['scale']}"
+        """Генерация изображения с кодом"""
+        url = (
+            f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}'
+            f'&language={self.config["language"]}&line-numbers=true'
+            f'&background-color={self.config["color"]}&scale={self.config["scale"]}'
+        )
 
         headers = {"content-type": "text/plain"}
 
         async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
-                    response.raise_for_status()  # Автоматически выбросит исключение, если статус != 200
-                    img_data = io.BytesIO(await response.read())
-                    
-                    # Если используется фоновое изображение, применяем обработку фона
-                    if self.config["background_image"]:
-                        img_data = await self._apply_background(img_data)
-                    
-                    img_data.name = "carbonized.jpg"
-                    return img_data
-            except aiohttp.ClientError as e:
-                logger.error(f"Ошибка запроса к API Code2Img: URL={url}, Ошибка: {str(e)}")
-                raise Exception(f"Ошибка запроса к API Code2Img: {str(e)}")
-            except aiohttp.http_exceptions.HttpProcessingError as e:
-                logger.error(f"Ошибка обработки HTTP-запроса: {str(e)}")
-                raise Exception(f"Ошибка обработки HTTP-запроса: {str(e)}")
-            except aiohttp.http_exceptions.ServerTimeoutError as e:
-                logger.error(f"Тайм-аут сервера при запросе к API: {str(e)}")
-                raise Exception(f"Тайм-аут сервера при запросе к API: {str(e)}")
-            except Exception as e:
-                logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
-                raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
+            async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
+                response.raise_for_status()
+                img_data = io.BytesIO(await response.read())
+                img_data.name = "carbonized.png"
+                return img_data
 
     async def _apply_background(self, img_data: io.BytesIO) -> io.BytesIO:
-    """Применение фонового изображения с сохранением пропорций (без обрезки)"""
-    background_image_url = self.config["background_image"]
+        """Применение фонового изображения с полным вмещением"""
+        background_url = self.config["background_image"]
+        if not background_url:
+            return img_data
 
-    # Загружаем фоновое изображение
-    async with aiohttp.ClientSession() as session:
-        async with session.get(background_image_url) as resp:
-            background_img_data = io.BytesIO(await resp.read())
-            background = Image.open(background_img_data).convert("RGBA")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(background_url) as resp:
+                background_data = io.BytesIO(await resp.read())
+                background = Image.open(background_data).convert("RGBA")
 
-    # Открываем изображение кода
-    img_data.seek(0)
-    img = Image.open(img_data).convert("RGBA")
+        img_data.seek(0)
+        img = Image.open(img_data).convert("RGBA")
 
-    img_width, img_height = img.size
-    bg_width, bg_height = background.size
+        img_width, img_height = img.size
+        bg_width, bg_height = background.size
 
-    # Определяем коэффициент масштабирования (вписываем фон внутрь)
-    scale_factor = min(img_width / bg_width, img_height / bg_height)
-    new_size = (int(bg_width * scale_factor), int(bg_height * scale_factor))
+        # Масштабируем фон так, чтобы он полностью умещался
+        scale_factor = min(img_width / bg_width, img_height / bg_height)
+        new_size = (int(bg_width * scale_factor), int(bg_height * scale_factor))
 
-    # Масштабируем фон и создаем новый холст
-    background = background.resize(new_size, Image.Resampling.LANCZOS)
-    final_background = Image.new("RGBA", (img_width, img_height), (0, 0, 0, 0))
+        background = background.resize(new_size, Image.Resampling.LANCZOS)
+        final_image = Image.new("RGBA", (img_width, img_height), (0, 0, 0, 0))
 
-    # Центрируем фон на холсте
-    left = (img_width - new_size[0]) // 2
-    top = (img_height - new_size[1]) // 2
-    final_background.paste(background, (left, top))
+        # Центрируем фон
+        left = (img_width - new_size[0]) // 2
+        top = (img_height - new_size[1]) // 2
+        final_image.paste(background, (left, top))
 
-    # Накладываем изображение кода поверх фона
-    final_background.paste(img, (0, 0), img)
+        # Накладываем код поверх фона
+        final_image.paste(img, (0, 0), img)
 
-    # Сохраняем результат
-    output = io.BytesIO()
-    final_background.save(output, format="PNG")
-    output.seek(0)
-
-    return output
-    
-  def _should_send_as_document(self, code: str) -> bool:
-        """Определяет, нужно ли отправить код как документ"""
-        return len(code) > self.config["max_code_length_for_document"]
+        output = io.BytesIO()
+        final_image.save(output, format="PNG")
+        output.seek(0)
+        return output
