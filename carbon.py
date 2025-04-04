@@ -125,12 +125,8 @@ class CarbonMod(loader.Module):
 
         # Если задан URL фона, скачиваем и масштабируем фон
         if self.config["background_image"]:
-            background_image = await self._download_and_resize_background(self.config["background_image"])
-            # Преобразуем изображение в формат, подходящий для передачи в API
-            background_image_data = io.BytesIO()
-            background_image.save(background_image_data, format="PNG")
-            background_image_data.seek(0)
-            url += f"&background-image={background_image_data}"
+            background_image_url = self.config["background_image"]
+            url += f"&background-image={background_image_url}"
 
         # Добавляем параметр scale
         url += f"&scale={self.config['scale']}"
@@ -156,24 +152,6 @@ class CarbonMod(loader.Module):
             except Exception as e:
                 logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
                 raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
-
-    async def _download_and_resize_background(self, image_url: str) -> Image:
-        """Загрузка и масштабирование фона"""
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(image_url) as response:
-                    response.raise_for_status()
-                    img_data = io.BytesIO(await response.read())
-                    background_image = Image.open(img_data)
-
-                    # Масштабируем изображение фона, подстраиваем под нужный размер (например, размер кода)
-                    # Здесь можно задать нужные размеры для фона (например, по ширине и высоте изображения)
-                    width, height = 1024, 512  # Примерные размеры для изображения кода
-                    background_image = background_image.resize((width, height), Image.ANTIALIAS)
-                    return background_image
-            except Exception as e:
-                logger.error(f"Ошибка при загрузке или масштабировании фона: {str(e)}")
-                raise Exception(f"Ошибка при загрузке или масштабировании фона: {str(e)}")
 
     def _should_send_as_document(self, code: str) -> bool:
         """Определяет, нужно ли отправить код как документ"""
