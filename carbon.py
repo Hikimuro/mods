@@ -18,7 +18,7 @@
 import io
 import aiohttp
 import logging
-from PIL import Image
+from PIL import Image, ImageOps
 from telethon.tl.types import Message
 from .. import loader, utils
 
@@ -26,7 +26,7 @@ from .. import loader, utils
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
 console_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s")
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -120,6 +120,11 @@ class CarbonMod(loader.Module):
                 async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
                     response.raise_for_status()  # Автоматически выбросит исключение, если статус != 200
                     img_data = io.BytesIO(await response.read())
+                    
+                    # Если используется фоновое изображение, применяем обработку фона
+                    if self.config["background_image"]:
+                        img_data = await self._apply_background(img_data)
+                    
                     img_data.name = "carbonized.jpg"
                     return img_data
             except aiohttp.ClientError as e:
@@ -134,6 +139,33 @@ class CarbonMod(loader.Module):
             except Exception as e:
                 logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
                 raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
+
+    async def _apply_background(self, img_data: io.BytesIO) -> io.BytesIO:
+        """Применение фона к изображению, масштабируя его до нужного размера"""
+        background_image_url = self.config["background_image"]
+        
+        # Загружаем изображение фона
+        async with aiohttp.ClientSession() as session:
+            async with session.get(background_image_url) as resp:
+                background_img_data = io.BytesIO(await resp.read())
+                background = Image.open(background_img_data)
+
+        # Открываем итоговое изображение
+        img_data.seek(0)
+        img = Image.open(img_data)
+
+        # Масштабируем фоновое изображение, чтобы оно подходило по размеру
+        background = background.resize(img.size, Image.Resampling.LANCZOS)
+
+        # Объединяем изображения: накладываем фон на итоговое изображение
+        background.paste(img, (0, 0), img)  # Если итоговое изображение имеет прозрачность, используем маску
+
+        # Сохраняем итоговое изображение в буфер
+        output = io.BytesIO()
+        background.save(output, format="JPEG")
+        output.seek(0)
+
+        return output
 
     def _should_send_as_document(self, code: str) -> bool:
         """Определяет, нужно ли отправить код как документ"""
