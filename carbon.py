@@ -135,32 +135,45 @@ class CarbonMod(loader.Module):
                 raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
 
     async def _apply_background(self, img_data: io.BytesIO) -> io.BytesIO:
-        """Применение фона к изображению, масштабируя его до нужного размера"""
-        background_image_url = self.config["background_image"]
-        
-        # Загружаем изображение фона
-        async with aiohttp.ClientSession() as session:
-            async with session.get(background_image_url) as resp:
-                background_img_data = io.BytesIO(await resp.read())
-                background = Image.open(background_img_data)
+    """Применение фонового изображения с сохранением пропорций (без обрезки)"""
+    background_image_url = self.config["background_image"]
 
-        # Открываем итоговое изображение
-        img_data.seek(0)
-        img = Image.open(img_data)
+    # Загружаем фоновое изображение
+    async with aiohttp.ClientSession() as session:
+        async with session.get(background_image_url) as resp:
+            background_img_data = io.BytesIO(await resp.read())
+            background = Image.open(background_img_data).convert("RGBA")
 
-        # Масштабируем фоновое изображение с сохранением пропорций
-        background = background.resize(img.size, Image.Resampling.LANCZOS)
+    # Открываем изображение кода
+    img_data.seek(0)
+    img = Image.open(img_data).convert("RGBA")
 
-        # Объединяем изображения: накладываем фон на итоговое изображение
-        background.paste(img, (0, 0), img)  # Если итоговое изображение имеет прозрачность, используем маску
+    img_width, img_height = img.size
+    bg_width, bg_height = background.size
 
-        # Сохраняем итоговое изображение в буфер
-        output = io.BytesIO()
-        background.save(output, format="JPEG")
-        output.seek(0)
+    # Определяем коэффициент масштабирования (вписываем фон внутрь)
+    scale_factor = min(img_width / bg_width, img_height / bg_height)
+    new_size = (int(bg_width * scale_factor), int(bg_height * scale_factor))
 
-        return output
+    # Масштабируем фон и создаем новый холст
+    background = background.resize(new_size, Image.Resampling.LANCZOS)
+    final_background = Image.new("RGBA", (img_width, img_height), (0, 0, 0, 0))
 
-    def _should_send_as_document(self, code: str) -> bool:
+    # Центрируем фон на холсте
+    left = (img_width - new_size[0]) // 2
+    top = (img_height - new_size[1]) // 2
+    final_background.paste(background, (left, top))
+
+    # Накладываем изображение кода поверх фона
+    final_background.paste(img, (0, 0), img)
+
+    # Сохраняем результат
+    output = io.BytesIO()
+    final_background.save(output, format="PNG")
+    output.seek(0)
+
+    return output
+    
+  def _should_send_as_document(self, code: str) -> bool:
         """Определяет, нужно ли отправить код как документ"""
         return len(code) > self.config["max_code_length_for_document"]
