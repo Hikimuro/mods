@@ -22,6 +22,14 @@ from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
+# Настройка логирования с фильтрацией повторений и уровнями
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 class CarbonMod(loader.Module):
     """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
 
@@ -46,15 +54,7 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("background_image", "", "URL фона изображения (необязательно). faq: размер 1920х1080 загрузить изображение на imgur, далее открыть изображение в новом окне и скопировать ссылку(Телефон), нажать пкм на загруженное изображение и скопировать URL(Пк)", validator=loader.validators.String()),
             loader.ConfigValue("scale", 3, "Коэффициент масштабирования (по умолчанию 3) (0-5)", validator=loader.validators.Integer())
         )
-        
-# Настройка логирования с фильтрацией повторений и уровнями
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
-console_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-    
+
     async def carboncmd(self, message: Message):
         """Создание изображения кода"""
         code = await self._get_code_from_sources(message)
@@ -73,7 +73,7 @@ logger.addHandler(console_handler)
                 reply_to=utils.get_topic(message) or await message.get_reply_message(),
             )
         except Exception as e:
-            logger.error("Ошибка при создании изображения для кода: %s", str(e))
+            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
             await loading_message.delete()
@@ -122,7 +122,7 @@ logger.addHandler(console_handler)
                         background = Image.open(img_data)
 
                         # Масштабируем фон под размер итогового изображения
-                        background = background.resize((code_width, code_height), Image.Resampling.LANCZOS)
+                        background = background.resize((code_width, code_height), Image.ANTIALIAS)
 
                         # Сохраняем результат в новый объект BytesIO
                         img_output = io.BytesIO()
@@ -155,7 +155,7 @@ logger.addHandler(console_handler)
                     img_data.name = "carbonized.jpg"
                     return img_data
             except aiohttp.ClientError as e:
-                logger.error(f"Ошибка запроса к API Code2Img: URL={url}, Ошибка: {str(e)}")
+                logger.error("Ошибка запроса к API Code2Img: URL=%s, Ошибка: %s", url, str(e))
                 raise Exception(f"Ошибка запроса к API Code2Img: {str(e)}")
             except Exception as e:
                 logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
