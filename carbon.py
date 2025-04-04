@@ -51,7 +51,7 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("color", "gray", "Цвет фона", validator=loader.validators.String()),
             loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
             loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer()),
-            loader.ConfigValue("background_image", "", "URL фона изображения (необязательно). faq: размер 1920х1080 загрузить изображение на imgur, далее открыть изображение в новом окне и скопировать ссылку(Телефон) нажать пкм на загруженное изображение и скопировать URL(Пк)", validator=loader.validators.String()),
+            loader.ConfigValue("background_image", "", "URL фона изображения (необязательно). faq: размер 1920х1080 загрузить изображение на imgur, далее открыть изображение в новом окне и скопировать ссылку(Телефон), нажать пкм на загруженное изображение и скопировать URL(Пк)", validator=loader.validators.String()),
             loader.ConfigValue("scale", 3, "Коэффициент масштабирования (по умолчанию 3) (0-5)", validator=loader.validators.Integer())
         )
 
