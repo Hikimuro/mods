@@ -15,6 +15,22 @@
 # scope: hikka_min 1.2.10
 # requires: urllib requests
 
+import subprocess
+import sys
+
+# Функция для установки зависимостей
+def install_dependencies():
+    required_libraries = ["requests", "urllib3"]
+    for library in required_libraries:
+        try:
+            __import__(library)
+        except ImportError:
+            print(f"Библиотека {library} не найдена. Устанавливаю...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", library])
+
+# Вызов функции установки зависимостей
+install_dependencies()
+
 import io
 import logging
 import aiohttp
