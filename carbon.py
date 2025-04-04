@@ -70,7 +70,7 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
             loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer()),
             loader.ConfigValue("background_image", "", "URL фона изображения (необязательно)", validator=loader.validators.String()),
-            loader.ConfigValue("scale", 3, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
+            loader.ConfigValue("scale", 2, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
         )
 
     async def carboncmd(self, message: Message):
@@ -114,7 +114,6 @@ class CarbonMod(loader.Module):
             return ""
 
         try:
-            # Попытка скачать файл и преобразовать его в строку
             return (await self.client.download_file(message.media, bytes)).decode("utf-8")
         except Exception as e:
             logger.warning(f"Ошибка при получении кода из медиа-сообщения. Сообщение: {message.id}, Ошибка: {str(e)}")
@@ -122,22 +121,24 @@ class CarbonMod(loader.Module):
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         """Генерация изображения с кодом (асинхронная версия)"""
-        # Формирование базового URL для запроса API
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}'
 
-        # Если задан URL фона, добавляем его в запрос
+        # Если задан URL фона, скачиваем и масштабируем фон
         if self.config["background_image"]:
-            url += f"&background-image={self.config['background_image']}"
+            background_image = await self._download_and_resize_background(self.config["background_image"])
+            # Преобразуем изображение в формат, подходящий для передачи в API
+            background_image_data = io.BytesIO()
+            background_image.save(background_image_data, format="PNG")
+            background_image_data.seek(0)
+            url += f"&background-image={background_image_data}"
 
-        # Добавляем параметр scale для масштабирования изображения
+        # Добавляем параметр scale
         url += f"&scale={self.config['scale']}"
 
         headers = {"content-type": "text/plain"}
 
-        # Создаем сессию для отправки запроса
         async with aiohttp.ClientSession() as session:
             try:
-                # Отправка POST-запроса с кодом
                 async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
                     response.raise_for_status()  # Автоматически выбросит исключение, если статус != 200
                     img_data = io.BytesIO(await response.read())
@@ -155,6 +156,24 @@ class CarbonMod(loader.Module):
             except Exception as e:
                 logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
                 raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
+
+    async def _download_and_resize_background(self, image_url: str) -> Image:
+        """Загрузка и масштабирование фона"""
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(image_url) as response:
+                    response.raise_for_status()
+                    img_data = io.BytesIO(await response.read())
+                    background_image = Image.open(img_data)
+
+                    # Масштабируем изображение фона, подстраиваем под нужный размер (например, размер кода)
+                    # Здесь можно задать нужные размеры для фона (например, по ширине и высоте изображения)
+                    width, height = 1024, 512  # Примерные размеры для изображения кода
+                    background_image = background_image.resize((width, height), Image.ANTIALIAS)
+                    return background_image
+            except Exception as e:
+                logger.error(f"Ошибка при загрузке или масштабировании фона: {str(e)}")
+                raise Exception(f"Ошибка при загрузке или масштабировании фона: {str(e)}")
 
     def _should_send_as_document(self, code: str) -> bool:
         """Определяет, нужно ли отправить код как документ"""
