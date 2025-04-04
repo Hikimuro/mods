@@ -122,7 +122,7 @@ class CarbonMod(loader.Module):
                         background = Image.open(img_data)
 
                         # Масштабируем фон под размер итогового изображения
-                        background = background.resize((code_width, code_height), Image.ANTIALIAS)
+                        background = background.resize((code_width, code_height), Image.Resampling.LANCZOS)
 
                         # Сохраняем результат в новый объект BytesIO
                         img_output = io.BytesIO()
