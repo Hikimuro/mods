@@ -105,6 +105,10 @@ class CarbonMod(loader.Module):
         """Генерация изображения с кодом (асинхронная версия)"""
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}'
 
+        # Изменяем размер итогового изображения в зависимости от масштаба
+        scale = self.config['scale']
+        code_width, code_height = 1200 * scale, 536 * scale  # Применяем масштабирование
+
         # Если задан URL фона, скачиваем и масштабируем фон
         if self.config["background_image"]:
             background_image_url = self.config["background_image"]
@@ -118,8 +122,7 @@ class CarbonMod(loader.Module):
                         background = Image.open(img_data)
 
                         # Масштабируем фон под размер итогового изображения
-                        width, height = 1200, 536  # Размер фона под итоговое изображение
-                        background = background.resize((width, height))
+                        background = background.resize((code_width, code_height), Image.ANTIALIAS)
 
                         # Сохраняем результат в новый объект BytesIO
                         img_output = io.BytesIO()
