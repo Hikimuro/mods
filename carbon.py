@@ -73,7 +73,7 @@ class CarbonMod(loader.Module):
                 reply_to=utils.get_topic(message) or await message.get_reply_message(),
             )
         except Exception as e:
-            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
+            logger.error("Ошибка при создании изображения для кода: %s", str(e))
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
             await loading_message.delete()
@@ -98,7 +98,7 @@ class CarbonMod(loader.Module):
         try:
             return (await self.client.download_file(message.media, bytes)).decode("utf-8")
         except Exception as e:
-            logger.warning(f"Ошибка при получении кода из медиа-сообщения. Сообщение: {message.id}, Ошибка: {str(e)}")
+            logger.warning("Ошибка при получении кода из медиа-сообщения. Сообщение: %s, Ошибка: %s", message.id, str(e))
             return ""
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
@@ -137,7 +137,7 @@ class CarbonMod(loader.Module):
                             f.write(background_image_bytes)
 
                 except Exception as e:
-                    logger.error(f"Ошибка при загрузке или обработке фона: {str(e)}")
+                    logger.error("Ошибка при загрузке или обработке фона: %s", str(e))
                     raise Exception(f"Ошибка при загрузке или обработке фона: {str(e)}")
 
             url += f"&background-image={background_image_url}"
@@ -158,7 +158,7 @@ class CarbonMod(loader.Module):
                 logger.error("Ошибка запроса к API Code2Img: URL=%s, Ошибка: %s", url, str(e))
                 raise Exception(f"Ошибка запроса к API Code2Img: {str(e)}")
             except Exception as e:
-                logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
+                logger.error("Неизвестная ошибка при генерации изображения: %s", str(e))
                 raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
 
     def _should_send_as_document(self, code: str) -> bool:
