@@ -70,7 +70,7 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("language", "python", "Язык программирования", validator=loader.validators.String()),
             loader.ConfigValue("max_code_length_for_document", 1000, "Максимальная длина кода для отправки как документ", validator=loader.validators.Integer()),
             loader.ConfigValue("background_image", "", "URL фона изображения (необязательно)", validator=loader.validators.String()),
-            loader.ConfigValue("scale", 2, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
+            loader.ConfigValue("scale", 3, "Коэффициент масштабирования (по умолчанию 2)", validator=loader.validators.Integer())
         )
 
     async def carboncmd(self, message: Message):
