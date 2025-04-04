@@ -35,12 +35,6 @@ class CarbonMod(loader.Module):
 
     strings = {
         "name": "Carbon",
-        "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>No code specified!</b>",
-        "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Loading...</b>",
-    }
-
-    strings_ru = {
-        "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
     }
@@ -154,7 +148,7 @@ class CarbonMod(loader.Module):
         img_data.seek(0)
         img = Image.open(img_data)
 
-        # Масштабируем фоновое изображение, чтобы оно подходило по размеру
+        # Масштабируем фоновое изображение с сохранением пропорций
         background = background.resize(img.size, Image.Resampling.LANCZOS)
 
         # Объединяем изображения: накладываем фон на итоговое изображение
