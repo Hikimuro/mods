@@ -22,9 +22,6 @@ from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
-# Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
-Image.ANTIALIAS = Image.LANCZOS
-
 # Настройка логирования с фильтрацией повторений и уровнями
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
@@ -33,21 +30,6 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
-class RepeatFilter(logging.Filter):
-    """Фильтр для предотвращения повторяющихся сообщений об ошибках"""
-    def __init__(self):
-        self.seen = set()
-
-    def filter(self, record):
-        if record.message in self.seen:
-            return False  # Пропустить повторяющееся сообщение
-        self.seen.add(record.message)
-        return True
-
-repeat_filter = RepeatFilter()
-console_handler.addFilter(repeat_filter)
-
-@loader.tds
 class CarbonMod(loader.Module):
     """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
 
