@@ -17,12 +17,35 @@
 
 import io
 import aiohttp
+import logging
 from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
 # Принудительная замена ANTIALIAS на LANCZOS, независимо от наличия ANTIALIAS
 Image.ANTIALIAS = Image.LANCZOS
+
+# Настройка логирования с фильтрацией повторений и уровнями
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+class RepeatFilter(logging.Filter):
+    """Фильтр для предотвращения повторяющихся сообщений об ошибках"""
+    def __init__(self):
+        self.seen = set()
+
+    def filter(self, record):
+        if record.message in self.seen:
+            return False  # Пропустить повторяющееся сообщение
+        self.seen.add(record.message)
+        return True
+
+repeat_filter = RepeatFilter()
+console_handler.addFilter(repeat_filter)
 
 @loader.tds
 class CarbonMod(loader.Module):
@@ -50,40 +73,48 @@ class CarbonMod(loader.Module):
 
     async def carboncmd(self, message: Message):
         """Создание изображения кода"""
-        code_sources = [
-            utils.get_args_raw(message),
-            await self._get_code_from_media(message),
-            await self._get_code_from_media(await message.get_reply_message())
-        ]
-        code = next((c for c in code_sources if c), None)
+        code = await self._get_code_from_sources(message)
 
         if not code:
             await utils.answer(message, self.strings("args"))
             return
 
         loading_message = await utils.answer(message, self.strings("loading"))
-        doc = await self._generate_code_image(code)
-        
-        await self.client.send_file(
-            utils.get_chat_id(message),
-            file=doc,
-            force_document=self._should_send_as_document(code),
-            reply_to=utils.get_topic(message) or await message.get_reply_message(),
-        )
-        
-        await loading_message.delete()
+        try:
+            doc = await self._generate_code_image(code)
+            await self.client.send_file(
+                utils.get_chat_id(message),
+                file=doc,
+                force_document=self._should_send_as_document(code),
+                reply_to=utils.get_topic(message) or await message.get_reply_message(),
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
+            await utils.answer(message, f"<b>Error: {str(e)}</b>")
+        finally:
+            await loading_message.delete()
+
+    async def _get_code_from_sources(self, message: Message) -> str:
+        """Получение кода из различных источников"""
+        code_sources = [
+            utils.get_args_raw(message),
+            await self._get_code_from_media(message),
+            await self._get_code_from_media(await message.get_reply_message())
+        ]
+        return next((c for c in code_sources if c), None)
 
     async def _get_code_from_media(self, message: Message) -> str:
         """Получение кода из медиа-сообщения"""
         if not message or not getattr(message, "document", None):
             return ""
-        
+
         if not message.document.mime_type.startswith("text/"):
             return ""
-        
+
         try:
             return (await self._client.download_file(message.media, bytes)).decode("utf-8")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Ошибка при получении кода из медиа-сообщения. Сообщение: {message.id}, Ошибка: {str(e)}")
             return ""
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
@@ -92,13 +123,24 @@ class CarbonMod(loader.Module):
         headers = {"content-type": "text/plain"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
-                if response.status != 200:
-                    raise Exception("Ошибка запроса к API Code2Img")
-                
-                img_data = io.BytesIO(await response.read())
-                img_data.name = "carbonized.jpg"
-                return img_data
+            try:
+                async with session.post(url, headers=headers, data=code.encode("utf-8")) as response:
+                    response.raise_for_status()  # Автоматически выбросит исключение, если статус != 200
+                    img_data = io.BytesIO(await response.read())
+                    img_data.name = "carbonized.jpg"
+                    return img_data
+            except aiohttp.ClientError as e:
+                logger.error(f"Ошибка запроса к API Code2Img: URL={url}, Ошибка: {str(e)}")
+                raise Exception(f"Ошибка запроса к API Code2Img: {str(e)}")
+            except aiohttp.http_exceptions.HttpProcessingError as e:
+                logger.error(f"Ошибка обработки HTTP-запроса: {str(e)}")
+                raise Exception(f"Ошибка обработки HTTP-запроса: {str(e)}")
+            except aiohttp.http_exceptions.ServerTimeoutError as e:
+                logger.error(f"Тайм-аут сервера при запросе к API: {str(e)}")
+                raise Exception(f"Тайм-аут сервера при запросе к API: {str(e)}")
+            except Exception as e:
+                logger.error(f"Неизвестная ошибка при генерации изображения: {str(e)}")
+                raise Exception(f"Неизвестная ошибка при генерации изображения: {str(e)}")
 
     def _should_send_as_document(self, code: str) -> bool:
         """Определяет, нужно ли отправить код как документ"""
