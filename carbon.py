@@ -22,13 +22,26 @@ from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 
-# Настройка логирования с фильтрацией повторений и уровнями
+# Настройка логирования
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Уровень для продакшн-системы
 console_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
+
+# Исправление фильтра логирования (если используется)
+class CustomFilter(logging.Filter):
+    def filter(self, record):
+        # Проверка и корректировка фильтрации
+        record.message = record.getMessage()  # Получаем сообщение через getMessage()
+        return True
+
+# Добавление кастомного фильтра
+logger.addFilter(CustomFilter())
+
+# Пример использования
+logger.error("Ошибка запроса к API Code2Img: URL=%s, Ошибка: %s", "https://example.com", "504 Gateway Timeout")
 
 class CarbonMod(loader.Module):
     """Создает симпатичные фотки кода. Отредактировано @Hikimuro"""
