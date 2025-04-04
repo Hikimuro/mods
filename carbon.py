@@ -73,7 +73,7 @@ class CarbonMod(loader.Module):
                 reply_to=utils.get_topic(message) or await message.get_reply_message(),
             )
         except Exception as e:
-            logger.error("Ошибка при создании изображения для кода: %s", str(e))
+            logger.error("Ошибка при создании изображения для кода: %s", str(e))  # Ошибка логирования
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
             await loading_message.delete()
