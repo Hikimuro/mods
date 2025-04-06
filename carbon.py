@@ -62,19 +62,26 @@ class CarbonMod(loader.Module):
             await utils.answer(message, self.strings("args"))
             return
 
-        if len(code) > self.config["max_code_length_for_document"]:
-            await utils.answer(message, "<b>Код слишком длинный, не может быть отправлен как изображение.</b>")
-            return
-
         loading_message = await utils.answer(message, self.strings("loading"))
         try:
             doc = await self._generate_code_image(code)
-            await self.client.send_file(
-                utils.get_chat_id(message),
-                file=doc,
-                force_document=self._should_send_as_document(code),
-                reply_to=utils.get_topic(message) or await message.get_reply_message(),
-            )
+            
+            # Если код слишком длинный, отправляем как файл
+            if len(code) > self.config["max_code_length_for_document"]:
+                await self.client.send_file(
+                    utils.get_chat_id(message),
+                    file=doc,
+                    force_document=True,
+                    reply_to=utils.get_topic(message) or await message.get_reply_message(),
+                )
+            else:
+                # Иначе отправляем изображение
+                await self.client.send_file(
+                    utils.get_chat_id(message),
+                    file=doc,
+                    force_document=self._should_send_as_document(code),
+                    reply_to=utils.get_topic(message) or await message.get_reply_message(),
+                )
         except Exception as e:
             logger.exception("Ошибка при создании изображения для кода: %s", str(e))
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
