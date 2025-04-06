@@ -19,9 +19,11 @@ import io
 import aiohttp
 import logging
 import os
+import re
 from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -147,13 +149,8 @@ class CarbonMod(loader.Module):
 
     def _is_valid_url(self, url: str) -> bool:
         """Проверка URL на корректность"""
-        import re
-        regex = re.compile(
-            r'^(?:http|ftp)s?://' # Протокол
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' # Домен
-            r'localhost|' # Локальный хост
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|' # IP
-            r'?[A-F0-9]*:[A-F0-9:]+?)' # IPv6
-            r'(?::\d+)?' # Порт
-            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        return re.match(regex, url) is not None
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
