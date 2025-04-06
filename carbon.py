@@ -37,12 +37,14 @@ class CarbonMod(loader.Module):
         "name": "Carbon",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>No code specified!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Loading...</b>",
+        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Message too large! Max size is 2500 characters.</b>",
     }
 
     strings_ru = {
         "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
+        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Сообщение слишком большое! Максимальный размер 2500 символов.</b>",
     }
 
     def __init__(self):
@@ -61,6 +63,11 @@ class CarbonMod(loader.Module):
 
         if not code:
             await utils.answer(message, self.strings("args"))
+            return
+
+        # Проверка на превышение лимита в 2500 символов
+        if len(code) > 2500:
+            await utils.answer(message, self.strings("too_large"))
             return
 
         loading_message = await utils.answer(message, self.strings("loading"))
