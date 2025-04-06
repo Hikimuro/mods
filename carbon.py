@@ -18,8 +18,11 @@
 import io
 import aiohttp
 import logging
+import os
+from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
+from urllib.parse import urlparse
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -99,11 +102,12 @@ class CarbonMod(loader.Module):
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
 
-        # Проверка на наличие URL фона
-        background_image = self.config["background_image"]
-        if background_image:
-            if not self._is_valid_url(background_image):
-                raise ValueError(f"Некорректный URL фона: {background_image}")
+        background_url = self.config["background_image"]
+        if background_url:
+            if not self._is_valid_url(background_url):
+                raise ValueError(f"Некорректный URL фона: {background_url}")
+            background_image = await self._download_and_resize_background(background_url, code)
+            # Вставляем фоновое изображение
             url += f"&background-image={background_image}"
 
         headers = {"content-type": "text/plain"}
@@ -121,11 +125,42 @@ class CarbonMod(loader.Module):
                 logger.error(f"Ошибка генерации изображения: {str(e)}")
                 raise Exception("Неизвестная ошибка генерации изображения")
 
+    async def _download_and_resize_background(self, url: str, code: str) -> str:
+        """Загрузка и изменение размера фонового изображения, если необходимо"""
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                resp.raise_for_status()
+                img_data = io.BytesIO(await resp.read())
+                img_data.seek(0)
+
+                # Загружаем фоновое изображение с помощью PIL
+                background = Image.open(img_data)
+                width, height = background.size
+
+                # Расчитаем необходимую высоту фона на основе количества строк
+                lines = code.split("\n")
+                max_height = 1080  # Максимальная высота
+                required_height = len(lines) * 15  # Высота строки (например, 15px на строку)
+
+                # Если размер фона меньше требуемого, увеличиваем его
+                if required_height > max_height:
+                    scale_factor = required_height / height
+                    new_width = int(width * scale_factor)
+                    new_height = int(height * scale_factor)
+
+                    # Растягиваем фон
+                    background = background.resize((new_width, new_height), Image.ANTIALIAS)
+                
+                # Сохраняем измененное фоновое изображение в буфер
+                buffer = io.BytesIO()
+                background.save(buffer, format="JPEG")
+                buffer.seek(0)
+                return buffer
+
     def _should_send_as_document(self, code: str) -> bool:
         return len(code) > self.config["max_code_length_for_document"]
 
     def _is_valid_url(self, url: str) -> bool:
-        """Проверка URL на корректность"""
         try:
             result = urlparse(url)
             return all([result.scheme, result.netloc])
