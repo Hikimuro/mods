@@ -18,10 +18,8 @@
 import io
 import aiohttp
 import logging
-import os
 from telethon.tl.types import Message
 from .. import loader, utils
-from urllib.parse import urlparse, urlencode
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -67,7 +65,6 @@ class CarbonMod(loader.Module):
         try:
             doc = await self._generate_code_image(code)
             
-            # Если код слишком длинный, отправляем как файл
             if len(code) > self.config["max_code_length_for_document"]:
                 await self.client.send_file(
                     utils.get_chat_id(message),
@@ -76,7 +73,6 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
             else:
-                # Иначе отправляем изображение
                 await self.client.send_file(
                     utils.get_chat_id(message),
                     file=doc,
@@ -84,50 +80,31 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
         except Exception as e:
-            logger.exception("Ошибка при создании изображения для кода: %s", str(e))
+            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
             await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
-            await loading_message.delete()
+            if loading_message:
+                await loading_message.delete()
 
     async def _get_code_from_sources(self, message: Message) -> str:
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
-        media_code = await self._get_code_from_media(message)
-        reply_code = await self._get_code_from_media(reply)
-        return next((c for c in [args, media_code, reply_code] if c), None)
+        code_from_message = args if args else (reply.text if reply else "")
+        
+        if not code_from_message and reply:
+            code_from_message = reply.text
 
-    async def _get_code_from_media(self, message: Message) -> str:
-        if not message or not getattr(message, "document", None):
-            return ""
-        if not message.document.mime_type.startswith("text/"):
-            return ""
-        try:
-            return (await self.client.download_file(message.media, bytes)).decode("utf-8")
-        except Exception as e:
-            logger.warning("Ошибка при получении кода из медиа. ID=%s Ошибка=%s", message.id, str(e))
-            return ""
+        return code_from_message
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
-        # Формирование URL для запроса
-        params = {
-            "theme": self.config["theme"],
-            "language": self.config["language"],
-            "line-numbers": "true",
-            "background-color": self.config["color"],
-            "scale": self.config["scale"],
-        }
+        url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
 
-        # Проверка фона
-        background_url = self.config["background_image"]
-        if background_url:
-            if not self._is_valid_url(background_url):
-                raise ValueError(f"Некорректный URL фона: {background_url}")
-            params["background-image"] = background_url
-        else:
-            params["background-color"] = self.config["color"]
-
-        # Формируем финальный URL
-        url = f'https://code2img.vercel.app/api/to-image?{urlencode(params)}'
+        # Проверка на наличие URL фона
+        background_image = self.config["background_image"]
+        if background_image:
+            if not self._is_valid_url(background_image):
+                raise ValueError(f"Некорректный URL фона: {background_image}")
+            url += f"&background-image={background_image}"
 
         headers = {"content-type": "text/plain"}
         async with aiohttp.ClientSession() as session:
@@ -138,10 +115,10 @@ class CarbonMod(loader.Module):
                     img_data.name = "carbonized.jpg"
                     return img_data
             except aiohttp.ClientError as e:
-                logger.error("Ошибка API Code2Img: %s", str(e))
+                logger.error(f"Ошибка API Code2Img: {str(e)}")
                 raise Exception("Ошибка API Code2Img")
             except Exception as e:
-                logger.error("Ошибка генерации изображения: %s", str(e))
+                logger.error(f"Ошибка генерации изображения: {str(e)}")
                 raise Exception("Неизвестная ошибка генерации изображения")
 
     def _should_send_as_document(self, code: str) -> bool:
