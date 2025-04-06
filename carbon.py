@@ -19,7 +19,6 @@ import io
 import aiohttp
 import logging
 import os
-from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 from urllib.parse import urlparse
@@ -38,12 +37,14 @@ class CarbonMod(loader.Module):
         "name": "Carbon",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>No code specified!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Loading...</b>",
+        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Message too large! Max size is 2500 characters.</b>",
     }
 
     strings_ru = {
         "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
+        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Сообщение слишком большое! Максимальный размер 2500 символов.</b>",
     }
 
     def __init__(self):
@@ -64,10 +65,17 @@ class CarbonMod(loader.Module):
             await utils.answer(message, self.strings("args"))
             return
 
+        # Проверка на превышение лимита в 2500 символов
+        if len(code) > 3000:
+            await utils.answer(message, self.strings("too_large"))
+            return
+
         loading_message = await utils.answer(message, self.strings("loading"))
         try:
+            # Параллельно загружаем изображение и фоновое изображение, если нужно
             doc = await self._generate_code_image(code)
             
+            # Отправка результата в зависимости от длины кода
             if len(code) > self.config["max_code_length_for_document"]:
                 await self.client.send_file(
                     utils.get_chat_id(message),
@@ -83,17 +91,23 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
         except Exception as e:
+            # В случае ошибки отправляем только одно сообщение с ошибкой
+            error_message = f"<b>Error: {str(e)}</b>\nPlease check the background image URL or the API status."
             logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
-            await utils.answer(message, f"<b>Error: {str(e)}</b>")
+            # Отправка ошибки в одном сообщении
+            await utils.answer(message, error_message)
         finally:
+            # Удаляем сообщение о загрузке, если оно существует
             if loading_message:
                 await loading_message.delete()
 
     async def _get_code_from_sources(self, message: Message) -> str:
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
+
         code_from_message = args if args else (reply.text if reply else "")
         
+        # Если нет текста в сообщении или ответе
         if not code_from_message and reply:
             code_from_message = reply.text
 
@@ -102,13 +116,12 @@ class CarbonMod(loader.Module):
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
 
+        # Если фоновое изображение указано
         background_url = self.config["background_image"]
         if background_url:
             if not self._is_valid_url(background_url):
                 raise ValueError(f"Некорректный URL фона: {background_url}")
-            background_image = await self._download_and_resize_background(background_url, code)
-            # Вставляем фоновое изображение
-            url += f"&background-image={background_image}"
+            url += f"&background-image={background_url}"
 
         headers = {"content-type": "text/plain"}
         async with aiohttp.ClientSession() as session:
@@ -125,42 +138,12 @@ class CarbonMod(loader.Module):
                 logger.error(f"Ошибка генерации изображения: {str(e)}")
                 raise Exception("Неизвестная ошибка генерации изображения")
 
-    async def _download_and_resize_background(self, url: str, code: str) -> str:
-        """Загрузка и изменение размера фонового изображения, если необходимо"""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                resp.raise_for_status()
-                img_data = io.BytesIO(await resp.read())
-                img_data.seek(0)
-
-                # Загружаем фоновое изображение с помощью PIL
-                background = Image.open(img_data)
-                width, height = background.size
-
-                # Расчитаем необходимую высоту фона на основе количества строк
-                lines = code.split("\n")
-                max_height = 1080  # Максимальная высота
-                required_height = len(lines) * 15  # Высота строки (например, 15px на строку)
-
-                # Если размер фона меньше требуемого, увеличиваем его
-                if required_height > max_height:
-                    scale_factor = required_height / height
-                    new_width = int(width * scale_factor)
-                    new_height = int(height * scale_factor)
-
-                    # Растягиваем фон
-                    background = background.resize((new_width, new_height), Image.ANTIALIAS)
-                
-                # Сохраняем измененное фоновое изображение в буфер
-                buffer = io.BytesIO()
-                background.save(buffer, format="JPEG")
-                buffer.seek(0)
-                return buffer
-
     def _should_send_as_document(self, code: str) -> bool:
+        """Возвращает True, если код слишком длинный для отправки как изображение"""
         return len(code) > self.config["max_code_length_for_document"]
 
     def _is_valid_url(self, url: str) -> bool:
+        """Проверка URL на корректность"""
         try:
             result = urlparse(url)
             return all([result.scheme, result.netloc])
