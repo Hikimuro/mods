@@ -19,11 +19,12 @@ import io
 import aiohttp
 import logging
 import os
-import re
+import time
 from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 from urllib.parse import urlparse
+import asyncio
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -47,6 +48,13 @@ class CarbonMod(loader.Module):
     }
 
     def __init__(self):
+        self.cache_dir = "./carbon_cache"  # Директория для кеширования фоновых изображений
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+
+        # Очистка старых кэшированных файлов при инициализации
+        self.clear_old_cache(max_age_days=7)
+
         self.config = loader.ModuleConfig(
             loader.ConfigValue("theme", "vsc-dark-plus", "Тема оформления", validator=loader.validators.String()),
             loader.ConfigValue("color", "gray", "Цвет фона", validator=loader.validators.String()),
@@ -55,6 +63,24 @@ class CarbonMod(loader.Module):
             loader.ConfigValue("background_image", "", "URL фона изображения (необязательно).", validator=loader.validators.String()),
             loader.ConfigValue("scale", 3, "Коэффициент масштабирования (по умолчанию 3) (0-5)", validator=loader.validators.Integer())
         )
+
+    def clear_old_cache(self, max_age_days=7, only_background=False):
+        """Очистка кэшированных файлов, которые старше max_age_days дней.
+        Если only_background=True, очищает только фоновые изображения.
+        """
+        current_time = time.time()
+        for filename in os.listdir(self.cache_dir):
+            file_path = os.path.join(self.cache_dir, filename)
+            if os.path.isfile(file_path):
+                if only_background and not filename.endswith('.jpg'):  # Для фона мы только ищем .jpg
+                    continue
+                file_age_days = (current_time - os.path.getmtime(file_path)) / (60 * 60 * 24)
+                if file_age_days > max_age_days:
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Удален устаревший файл: {file_path}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при удалении файла {file_path}: {str(e)}")
 
     async def carboncmd(self, message: Message):
         """Создание изображения кода"""
@@ -91,6 +117,7 @@ class CarbonMod(loader.Module):
             await loading_message.delete()
 
     async def _get_code_from_sources(self, message: Message) -> str:
+        """Извлекает код из источников: аргументов команды, сообщений или медиа"""
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
         media_code = await self._get_code_from_media(message)
@@ -98,6 +125,7 @@ class CarbonMod(loader.Module):
         return next((c for c in [args, media_code, reply_code] if c), None)
 
     async def _get_code_from_media(self, message: Message) -> str:
+        """Извлекает код из медиа, если это текстовый документ"""
         if not message or not getattr(message, "document", None):
             return ""
         if not message.document.mime_type.startswith("text/"):
@@ -109,6 +137,7 @@ class CarbonMod(loader.Module):
             return ""
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
+        """Генерирует изображение кода через API"""
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
 
         background_url = self.config["background_image"]
@@ -116,18 +145,26 @@ class CarbonMod(loader.Module):
             if not self._is_valid_url(background_url):
                 raise ValueError(f"Некорректный URL фона: {background_url}")
             
-            cache_path = ".carbon_bg_cache.jpg"
+            cache_path = os.path.join(self.cache_dir, "carbon_bg_cache.jpg")
             if not os.path.exists(cache_path):
-                async with aiohttp.ClientSession() as session:
-                    try:
+                # Параллельная загрузка фона с проверкой статуса
+                try:
+                    async with aiohttp.ClientSession() as session:
                         async with session.get(background_url) as resp:
                             resp.raise_for_status()
+                            if resp.status == 404:
+                                raise Exception("Фоновое изображение не найдено.")
                             with open(cache_path, "wb") as f:
                                 f.write(await resp.read())
-                    except Exception as e:
-                        logger.error("Не удалось загрузить фон: %s", str(e))
-                        raise Exception("Ошибка загрузки фонового изображения")
-            url += f"&background-image={background_url}"
+                            logger.info(f"Фоновое изображение сохранено в кэш: {cache_path}")
+                except aiohttp.ClientError as e:
+                    logger.error("Ошибка при загрузке фона: %s", str(e))
+                    raise Exception("Ошибка загрузки фонового изображения")
+                except Exception as e:
+                    logger.error("Неизвестная ошибка при загрузке фона: %s", str(e))
+                    raise
+
+            url += f"&background-image={cache_path}"
 
         headers = {"content-type": "text/plain"}
         async with aiohttp.ClientSession() as session:
@@ -145,6 +182,7 @@ class CarbonMod(loader.Module):
                 raise Exception("Неизвестная ошибка генерации изображения")
 
     def _should_send_as_document(self, code: str) -> bool:
+        """Проверяет, нужно ли отправлять код как документ"""
         return len(code) > self.config["max_code_length_for_document"]
 
     def _is_valid_url(self, url: str) -> bool:
