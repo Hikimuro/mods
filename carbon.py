@@ -21,7 +21,7 @@ import logging
 import os
 from telethon.tl.types import Message
 from .. import loader, utils
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -37,14 +37,12 @@ class CarbonMod(loader.Module):
         "name": "Carbon",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>No code specified!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Loading...</b>",
-        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Message too large! Max size is 2500 characters.</b>",
     }
 
     strings_ru = {
         "_cls_doc": "Создает симпатичные фотки кода. Отредактировано @Hikimuro",
         "args": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Не указан код!</b>",
         "loading": "<emoji document_id=5213452215527677338>⏳</emoji> <b>Обработка...</b>",
-        "too_large": "<emoji document_id=5312526098750252863>🚫</emoji> <b>Сообщение слишком большое! Максимальный размер 2500 символов.</b>",
     }
 
     def __init__(self):
@@ -65,17 +63,11 @@ class CarbonMod(loader.Module):
             await utils.answer(message, self.strings("args"))
             return
 
-        # Проверка на превышение лимита в 2500 символов
-        if len(code) > 2500:
-            await utils.answer(message, self.strings("too_large"))
-            return
-
         loading_message = await utils.answer(message, self.strings("loading"))
         try:
-            # Параллельно загружаем изображение и фоновое изображение, если нужно
             doc = await self._generate_code_image(code)
             
-            # Отправка результата в зависимости от длины кода
+            # Если код слишком длинный, отправляем как файл
             if len(code) > self.config["max_code_length_for_document"]:
                 await self.client.send_file(
                     utils.get_chat_id(message),
@@ -84,6 +76,7 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
             else:
+                # Иначе отправляем изображение
                 await self.client.send_file(
                     utils.get_chat_id(message),
                     file=doc,
@@ -91,37 +84,50 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
         except Exception as e:
-            # В случае ошибки отправляем только одно сообщение с ошибкой
-            error_message = f"<b>Error: {str(e)}</b>\nPlease check the background image URL or the API status."
-            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
-            # Отправка ошибки в одном сообщении
-            await utils.answer(message, error_message)
+            logger.exception("Ошибка при создании изображения для кода: %s", str(e))
+            await utils.answer(message, f"<b>Error: {str(e)}</b>")
         finally:
-            # Удаляем сообщение о загрузке, если оно существует
-            if loading_message:
-                await loading_message.delete()
+            await loading_message.delete()
 
     async def _get_code_from_sources(self, message: Message) -> str:
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
+        media_code = await self._get_code_from_media(message)
+        reply_code = await self._get_code_from_media(reply)
+        return next((c for c in [args, media_code, reply_code] if c), None)
 
-        code_from_message = args if args else (reply.text if reply else "")
-        
-        # Если нет текста в сообщении или ответе
-        if not code_from_message and reply:
-            code_from_message = reply.text
-
-        return code_from_message
+    async def _get_code_from_media(self, message: Message) -> str:
+        if not message or not getattr(message, "document", None):
+            return ""
+        if not message.document.mime_type.startswith("text/"):
+            return ""
+        try:
+            return (await self.client.download_file(message.media, bytes)).decode("utf-8")
+        except Exception as e:
+            logger.warning("Ошибка при получении кода из медиа. ID=%s Ошибка=%s", message.id, str(e))
+            return ""
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
-        url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
+        # Формирование URL для запроса
+        params = {
+            "theme": self.config["theme"],
+            "language": self.config["language"],
+            "line-numbers": "true",
+            "background-color": self.config["color"],
+            "scale": self.config["scale"],
+        }
 
-        # Если фоновое изображение указано
+        # Проверка фона
         background_url = self.config["background_image"]
         if background_url:
             if not self._is_valid_url(background_url):
                 raise ValueError(f"Некорректный URL фона: {background_url}")
-            url += f"&background-image={background_url}"
+            params["background-image"] = background_url
+        else:
+            params["background-color"] = self.config["color"]
+
+        # Формируем финальный URL
+        url = f'https://code2img.vercel.app/api/to-image?{urlencode(params)}'
 
         headers = {"content-type": "text/plain"}
         async with aiohttp.ClientSession() as session:
@@ -132,14 +138,13 @@ class CarbonMod(loader.Module):
                     img_data.name = "carbonized.jpg"
                     return img_data
             except aiohttp.ClientError as e:
-                logger.error(f"Ошибка API Code2Img: {str(e)}")
+                logger.error("Ошибка API Code2Img: %s", str(e))
                 raise Exception("Ошибка API Code2Img")
             except Exception as e:
-                logger.error(f"Ошибка генерации изображения: {str(e)}")
+                logger.error("Ошибка генерации изображения: %s", str(e))
                 raise Exception("Неизвестная ошибка генерации изображения")
 
     def _should_send_as_document(self, code: str) -> bool:
-        """Возвращает True, если код слишком длинный для отправки как изображение"""
         return len(code) > self.config["max_code_length_for_document"]
 
     def _is_valid_url(self, url: str) -> bool:
