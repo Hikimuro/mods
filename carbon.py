@@ -19,8 +19,6 @@ import io
 import aiohttp
 import logging
 import os
-import time
-from PIL import Image
 from telethon.tl.types import Message
 from .. import loader, utils
 from urllib.parse import urlparse
@@ -94,20 +92,15 @@ class CarbonMod(loader.Module):
     async def _get_code_from_sources(self, message: Message) -> str:
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
-        media_code = await self._get_code_from_media(message)
-        reply_code = await self._get_code_from_media(reply)
-        return next((c for c in [args, media_code, reply_code] if c), None)
+        
+        # Получаем код из текста сообщения или текста в ответе на сообщение
+        code_from_message = args if args else (reply.text if reply else "")
+        
+        # Если в ответе есть текст, используем его
+        if not code_from_message and reply:
+            code_from_message = reply.text
 
-    async def _get_code_from_media(self, message: Message) -> str:
-        if not message or not getattr(message, "document", None):
-            return ""
-        if not message.document.mime_type.startswith("text/"):
-            return ""
-        try:
-            return (await self.client.download_file(message.media, bytes)).decode("utf-8")
-        except Exception as e:
-            logger.warning("Ошибка при получении кода из медиа. ID=%s Ошибка=%s", message.id, str(e))
-            return ""
+        return code_from_message
 
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
