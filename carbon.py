@@ -84,10 +84,10 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
         except Exception as e:
-            # Объединение всех ошибок в одно сообщение
-            error_message = f"<b>Error: {str(e)}</b>\n"
-            error_message += "Please check the background image URL or the API status."
-            logger.exception(f"Ошибка при создании изображения для кода: {str(e)}")
+            # Теперь ошибка обрабатывается в одном сообщении
+            error_message = f"<b>Error: {str(e)}</b>\nPlease check the background image URL or the API status."
+            logger.error(f"Ошибка при создании изображения для кода: {str(e)}")
+            # Отправка ошибки в одном сообщении
             await utils.answer(message, error_message)
         finally:
             await loading_message.delete()
