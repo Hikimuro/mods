@@ -84,8 +84,11 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
         except Exception as e:
-            logger.exception("Ошибка при создании изображения для кода: %s", str(e))
-            await utils.answer(message, f"<b>Error: {str(e)}</b>")
+            # Объединение всех ошибок в одно сообщение
+            error_message = f"<b>Error: {str(e)}</b>\n"
+            error_message += "Please check the background image URL or the API status."
+            logger.exception(f"Ошибка при создании изображения для кода: {str(e)}")
+            await utils.answer(message, error_message)
         finally:
             await loading_message.delete()
 
@@ -120,10 +123,10 @@ class CarbonMod(loader.Module):
                     img_data.name = "carbonized.jpg"
                     return img_data
             except aiohttp.ClientError as e:
-                logger.error("Ошибка API Code2Img: %s", str(e))
+                logger.error(f"Ошибка API Code2Img: {str(e)}")
                 raise Exception("Ошибка API Code2Img")
             except Exception as e:
-                logger.error("Ошибка генерации изображения: %s", str(e))
+                logger.error(f"Ошибка генерации изображения: {str(e)}")
                 raise Exception("Неизвестная ошибка генерации изображения")
 
     def _should_send_as_document(self, code: str) -> bool:
