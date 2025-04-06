@@ -65,9 +65,10 @@ class CarbonMod(loader.Module):
 
         loading_message = await utils.answer(message, self.strings("loading"))
         try:
+            # Параллельно загружаем изображение и фоновое изображение, если нужно
             doc = await self._generate_code_image(code)
             
-            # Если код слишком длинный, отправляем как файл
+            # Отправка результата в зависимости от длины кода
             if len(code) > self.config["max_code_length_for_document"]:
                 await self.client.send_file(
                     utils.get_chat_id(message),
@@ -76,7 +77,6 @@ class CarbonMod(loader.Module):
                     reply_to=utils.get_topic(message) or await message.get_reply_message(),
                 )
             else:
-                # Иначе отправляем изображение
                 await self.client.send_file(
                     utils.get_chat_id(message),
                     file=doc,
@@ -92,11 +92,10 @@ class CarbonMod(loader.Module):
     async def _get_code_from_sources(self, message: Message) -> str:
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
-        
-        # Получаем код из текста сообщения или текста в ответе на сообщение
+
         code_from_message = args if args else (reply.text if reply else "")
         
-        # Если в ответе есть текст, используем его
+        # Если нет текста в сообщении или ответе
         if not code_from_message and reply:
             code_from_message = reply.text
 
@@ -105,12 +104,11 @@ class CarbonMod(loader.Module):
     async def _generate_code_image(self, code: str) -> io.BytesIO:
         url = f'https://code2img.vercel.app/api/to-image?theme={self.config["theme"]}&language={self.config["language"]}&line-numbers=true&background-color={self.config["color"]}&scale={self.config["scale"]}'
 
+        # Если фоновое изображение указано
         background_url = self.config["background_image"]
         if background_url:
             if not self._is_valid_url(background_url):
                 raise ValueError(f"Некорректный URL фона: {background_url}")
-
-            # Передаем URL фона непосредственно в запрос API
             url += f"&background-image={background_url}"
 
         headers = {"content-type": "text/plain"}
@@ -129,6 +127,7 @@ class CarbonMod(loader.Module):
                 raise Exception("Неизвестная ошибка генерации изображения")
 
     def _should_send_as_document(self, code: str) -> bool:
+        """Возвращает True, если код слишком длинный для отправки как изображение"""
         return len(code) > self.config["max_code_length_for_document"]
 
     def _is_valid_url(self, url: str) -> bool:
