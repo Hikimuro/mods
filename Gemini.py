@@ -38,7 +38,7 @@ class gemini(loader.Module):
             ),
             loader.ConfigValue(
                 "model_name",
-                "gemini-1.5-flash",
+                "gemini-2.0-flash",
                 "Модель для Gemini AI.",
                 validator=loader.validators.String(),
             ),
