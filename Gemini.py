@@ -1,4 +1,4 @@
-__version__ = (1, 0, 0, 1)
+__version__ = (1, 0, 0)
 
 # This file is a part of Hikka Userbot
 # Code is NOT licensed under CC-BY-NC-ND 4.0 unless otherwise specified.
@@ -23,10 +23,10 @@ import asyncio
 from .. import loader, utils
 
 @loader.tds
-class yg_gemini(loader.Module):
+class gemini(loader.Module):
     """Модуль для общения с Gemini AI (асинхронно)"""
 
-    strings = {"name": "yg_gemini"}
+    strings = {"name": "gemini"}
 
     def __init__(self):
         self.config = loader.ModuleConfig(
