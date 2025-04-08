@@ -124,14 +124,12 @@ class deepseek_module(loader.Module):
 
         try:
             # Конфигурируем и создаем модель для генерации ответа
-            deepseek.configure(api_key=self.config["api_key"])
-            system_instruction = self.config["system_instruction"] or None
             model = deepseek.GenerativeModel(
                 model_name=self.config["model_name"],
-                system_instruction=system_instruction,
+                api_key=self.config["api_key"],
+                system_instruction=self.config["system_instruction"] or None,
                 safety_settings=self.safety_settings,
             )
-
             # Генерируем ответ с использованием изображения и/или текста
             if img:
                 response = await asyncio.to_thread(model.generate_content, [prompt, img] if prompt else ["", img])
