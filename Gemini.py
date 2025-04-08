@@ -17,14 +17,14 @@ __version__ = (1, 0, 0)
 
 import google.generativeai as genai
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 import asyncio
 
 from .. import loader, utils
 
 @loader.tds
 class gemini(loader.Module):
-    """Модуль для общения с Gemini AI (асинхронно)"""
+    """Модуль для общения с Gemini AI"""
 
     strings = {"name": "gemini"}
 
@@ -92,15 +92,17 @@ class gemini(loader.Module):
                 if hasattr(reply, "media") and reply.media and reply.photo:
                     await message.edit("<b><emoji document_id=5386367538735104399>⌛️</emoji> Загрузка фото...</b>")
                     media_path = await reply.download_media()
-            except Exception:
-                pass
+            except Exception as e:
+                await message.edit(f"<emoji document_id=5274099962655816924>❗️</emoji> <b>Ошибка загрузки изображения:</b> {e}")
+                return
 
         # Если есть изображение, загружаем и обрабатываем его
         if media_path:
             try:
-                img = Image.open(media_path)
+                img = await asyncio.to_thread(Image.open, media_path)
+                img = ImageOps.exif_transpose(img)
                 img = img.convert("RGB")
-                img.thumbnail((1024, 1024))  # Уменьшаем изображение до разумного размера
+                await asyncio.to_thread(img.thumbnail, (512, 512))  # Уменьшаем изображение до разумного размера
             except Exception as e:
                 await message.edit(f"<emoji document_id=5274099962655816924>❗️</emoji> <b>Ошибка открытия изображения:</b> {e}")
                 if os.path.exists(media_path):
