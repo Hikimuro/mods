@@ -59,12 +59,12 @@ class gemini(loader.Module):
     async def client_ready(self, client, db):
         self.client = client
         self.safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
-        ]
+    {"category": "harm_category_harassment", "threshold": "block_none"},
+    {"category": "harm_category_hate_speech", "threshold": "block_none"},
+    {"category": "harm_category_sexually_explicit", "threshold": "block_none"},
+    {"category": "harm_category_dangerous_content", "threshold": "block_none"},
+    {"category": "harm_category_civic_integrity", "threshold": "block_none"},
+]
 
         proxy = self.config["proxy"]
         if proxy:
