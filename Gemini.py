@@ -1,12 +1,6 @@
-__version__ = (1, 0, 0)
+__version__ = (1, 0, 1)
 
 # This file is a part of Hikka Userbot
-# Code is NOT licensed under CC-BY-NC-ND 4.0 unless otherwise specified.
-# 🌐 https://github.com/hikariatama/Hikka
-
-# You CAN edit this file without direct permission from the author.
-# You can redistribute this file with any modifications.
-
 # edit by @Hikimuro
 
 # meta developer: @yg_modules
@@ -54,6 +48,12 @@ class gemini(loader.Module):
                 "Прокси (http://<user>:<pass>@<proxy>:<port> или http://<proxy>:<port>)",
                 validator=loader.validators.String(),
             ),
+            loader.ConfigValue(
+                "max_depth",
+                1,
+                "Глубина размышления Gemini (1–5, влияет на качество и скорость)",
+                validator=loader.validators.Integer(1, 5),
+            ),
         )
 
     async def client_ready(self, client, db):
@@ -85,7 +85,6 @@ class gemini(loader.Module):
         media_path = None
         img = None
 
-        # Проверяем, если это ответ на сообщение с изображением
         if message.is_reply:
             reply = await message.get_reply_message()
             try:
@@ -96,27 +95,24 @@ class gemini(loader.Module):
                 await message.edit(f"<emoji document_id=5274099962655816924>❗️</emoji> <b>Ошибка загрузки изображения:</b> {e}")
                 return
 
-        # Если есть изображение, загружаем и обрабатываем его
         if media_path:
             try:
                 img = await asyncio.to_thread(Image.open, media_path)
                 img = ImageOps.exif_transpose(img)
                 img = img.convert("RGB")
-                await asyncio.to_thread(img.thumbnail, (512, 512))  # Уменьшаем изображение до разумного размера
+                await asyncio.to_thread(img.thumbnail, (512, 512))
             except Exception as e:
                 await message.edit(f"<emoji document_id=5274099962655816924>❗️</emoji> <b>Ошибка открытия изображения:</b> {e}")
                 if os.path.exists(media_path):
                     os.remove(media_path)
                 return
 
-        # Если нет текста и нет изображения, просим пользователя предоставить информацию
         if not prompt and not img:
             await message.edit(
                 "<emoji document_id=5274099962655816924>❗️</emoji> <i>Введи запрос или ответь на изображение</i>"
             )
             return
 
-        # Формируем сообщение
         edit_message = (
             f"<emoji document_id=5443038326535759644>💬</emoji> <b>Вопрос:</b> {prompt}\n\n"
             if prompt else
@@ -125,16 +121,18 @@ class gemini(loader.Module):
         await message.edit(edit_message)
 
         try:
-            # Конфигурируем и создаем модель для генерации ответа
             genai.configure(api_key=self.config["api_key"])
             system_instruction = self.config["system_instruction"] or None
+
             model = genai.GenerativeModel(
                 model_name=self.config["model_name"],
                 system_instruction=system_instruction,
                 safety_settings=self.safety_settings,
+                generation_config={
+                    "max_depth": self.config["max_depth"]
+                },
             )
 
-            # Генерируем ответ с использованием изображения и/или текста
             if img:
                 response = await asyncio.to_thread(model.generate_content, [prompt, img] if prompt else ["", img])
             else:
@@ -142,16 +140,19 @@ class gemini(loader.Module):
 
             reply_text = response.text.strip()
 
-            # Отправляем ответ
-            await message.edit(
-                f"<emoji document_id=5325547803936572038>✨</emoji> <b>Ответ от Gemini:</b> {reply_text}"
-            )
+            # Разбиваем длинный ответ на части
+            max_length = 4096
+            header = "<emoji document_id=5325547803936572038>✨</emoji> <b>Ответ от Gemini:</b>\n\n"
+            parts = [reply_text[i:i + max_length - len(header)] for i in range(0, len(reply_text), max_length - len(header))]
+
+            await message.edit(header + parts[0])
+            for part in parts[1:]:
+                await message.respond(part)
 
         except Exception as e:
             await message.edit(f"<emoji document_id=5274099962655816924>❗️</emoji> <b>Ошибка:</b> {e}")
 
         finally:
-            # Удаляем временный файл изображения, если он был загружен
             if media_path and os.path.exists(media_path):
                 try:
                     os.remove(media_path)
