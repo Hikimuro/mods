@@ -1,9 +1,15 @@
 __version__ = (1, 0, 4) 
 
-# This file is a part of Hikka Userbot
-# edit by @Hikimuro
+# ███████╗███╗░░░███╗██╗░░██╗░░░░░██╗
+# ██╔════╝████╗░████║██║░░██║░░░░░██║
+# █████╗░░██╔████╔██║███████║░░░░░██║
+# ██╔══╝░░██║╚██╔╝██║██╔══██║██╗░░██║
+# ██║░░░░░██║░╚═╝░██║██║░░██║╚█████╔╝
+# ╚═╝░░░░░╚═╝░░░░░╚═╝╚═╝░░╚═╝░╚════╝░
 
-# meta developer: @yg_modules
+# This file is a part of Hikka Userbot
+
+# meta developer: @Hikimuro
 # scope: hikka_only
 # scope: hikka_min 1.6.3
 
