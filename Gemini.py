@@ -1,4 +1,4 @@
-__version__ = (1, 0, 1)
+__version__ = (1, 0, 0)
 
 # This file is a part of Hikka Userbot
 # edit by @Hikimuro
@@ -52,7 +52,7 @@ class gemini(loader.Module):
                 "max_depth",
                 1,
                 "Глубина размышления Gemini (1–5, влияет на качество и скорость)",
-                validator=loader.validators.Integer(1, 5),
+                validator=loader.validators.Int(min=1, max=5),  # Исправленная строка
             ),
         )
 
