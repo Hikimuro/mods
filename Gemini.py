@@ -1,4 +1,4 @@
-__version__ = (1, 0, 1)
+__version__ = (1, 0, 0)
 
 # This file is a part of Hikka Userbot
 # edit by @Hikimuro
@@ -73,8 +73,7 @@ class gemini(loader.Module):
             os.environ["HTTPS_PROXY"] = proxy
 
     async def geminicmd(self, message):
-        """<reply to photo / text> — отправить запрос к Gemini.
-Отредактировано @Hikimuro"""
+        """<reply to photo / text> — отправить запрос к Gemini."""
         if not self.config["api_key"]:
             await message.edit(
                 "<emoji document_id=5274099962655816924>❗️</emoji> <b>API ключ не указан. Получи его на aistudio.google.com/apikey и укажи в конфиге</b>"
