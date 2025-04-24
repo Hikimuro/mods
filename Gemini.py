@@ -1,4 +1,4 @@
-__version__ = (1, 0, 3)
+__version__ = (1, 0, 4) 
 
 # This file is a part of Hikka Userbot
 # edit by @Hikimuro
@@ -47,30 +47,6 @@ class gemini(loader.Module):
                 "",
                 "Прокси (http://<user>:<pass>@<proxy>:<port> или http://<proxy>:<port>)",
                 validator=loader.validators.String(),
-            ),
-            loader.ConfigValue(
-                "temperature",
-                0.7,
-                "Температура (от 0 до 1, влияет на креативность)",
-                validator=loader.validators.Float(),
-            ),
-            loader.ConfigValue(
-                "top_p",
-                0.95,
-                "Top-p (от 0 до 1, контролирует случайность)",
-                validator=loader.validators.Float(),
-            ),
-            loader.ConfigValue(
-                "top_k",
-                40,
-                "Top-k (целое число, контроль разнообразия)",
-                validator=loader.validators.Integer(),
-            ),
-            loader.ConfigValue(
-                "max_output_tokens",
-                1024,
-                "Максимум токенов в ответе",
-                validator=loader.validators.Integer(),
             ),
         )
 
@@ -145,12 +121,6 @@ class gemini(loader.Module):
                 model_name=self.config["model_name"],
                 system_instruction=system_instruction,
                 safety_settings=self.safety_settings,
-                generation_config={
-                    "temperature": self.config["temperature"],
-                    "top_p": self.config["top_p"],
-                    "top_k": self.config["top_k"],
-                    "max_output_tokens": self.config["max_output_tokens"],
-                },
             )
 
             if img:
@@ -160,10 +130,7 @@ class gemini(loader.Module):
 
             reply_text = response.text.strip()
 
-            if not reply_text:
-                await message.edit("<emoji document_id=5274099962655816924>❗️</emoji> <b>Gemini не вернул ответ.</b>")
-                return
-
+            # Разбиваем длинный ответ на части
             max_length = 4096
             header = "<emoji document_id=5325547803936572038>✨</emoji> <b>Ответ от Gemini:</b>\n\n"
             parts = [reply_text[i:i + max_length - len(header)] for i in range(0, len(reply_text), max_length - len(header))]
