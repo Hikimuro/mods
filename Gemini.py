@@ -52,7 +52,7 @@ class gemini(loader.Module):
                 "max_depth",
                 1,
                 "Глубина размышления Gemini (1–5, влияет на качество и скорость)",
-                validator=loader.validators.Integer(min=1, max=5),  # Используем Integer с min и max
+                validator=loader.validators.Callback(lambda value: 1 <= value <= 5, "Значение должно быть от 1 до 5"),
             ),
         )
 
