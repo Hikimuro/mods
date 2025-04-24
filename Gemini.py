@@ -1,4 +1,4 @@
-__version__ = (1, 0, 2)
+__version__ = (1, 0, 3)
 
 # This file is a part of Hikka Userbot
 # edit by @Hikimuro
@@ -159,6 +159,10 @@ class gemini(loader.Module):
                 response = await asyncio.to_thread(model.generate_content, [prompt])
 
             reply_text = response.text.strip()
+
+            if not reply_text:
+                await message.edit("<emoji document_id=5274099962655816924>❗️</emoji> <b>Gemini не вернул ответ.</b>")
+                return
 
             max_length = 4096
             header = "<emoji document_id=5325547803936572038>✨</emoji> <b>Ответ от Gemini:</b>\n\n"
