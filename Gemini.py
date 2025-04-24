@@ -1,4 +1,4 @@
-__version__ = (1, 0, 1)
+__version__ = (1, 0, 2)
 
 # This file is a part of Hikka Userbot
 # edit by @Hikimuro
@@ -49,10 +49,28 @@ class gemini(loader.Module):
                 validator=loader.validators.String(),
             ),
             loader.ConfigValue(
-                "max_depth",
-                1,
-                "Глубина размышления Gemini (1–5, влияет на качество и скорость)",
-                validator=loader.validators.Integer(),  # Заменили здесь
+                "temperature",
+                0.7,
+                "Температура (от 0 до 1, влияет на креативность)",
+                validator=loader.validators.Float(min=0.0, max=1.0),
+            ),
+            loader.ConfigValue(
+                "top_p",
+                0.95,
+                "Top-p (от 0 до 1, контролирует случайность)",
+                validator=loader.validators.Float(min=0.0, max=1.0),
+            ),
+            loader.ConfigValue(
+                "top_k",
+                40,
+                "Top-k (целое число, контроль разнообразия)",
+                validator=loader.validators.Integer(),
+            ),
+            loader.ConfigValue(
+                "max_output_tokens",
+                1024,
+                "Максимум токенов в ответе",
+                validator=loader.validators.Integer(),
             ),
         )
 
@@ -128,7 +146,10 @@ class gemini(loader.Module):
                 system_instruction=system_instruction,
                 safety_settings=self.safety_settings,
                 generation_config={
-                    "max_depth": self.config["max_depth"]
+                    "temperature": self.config["temperature"],
+                    "top_p": self.config["top_p"],
+                    "top_k": self.config["top_k"],
+                    "max_output_tokens": self.config["max_output_tokens"],
                 },
             )
 
