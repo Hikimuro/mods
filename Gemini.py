@@ -52,7 +52,7 @@ class gemini(loader.Module):
                 "max_depth",
                 1,
                 "Глубина размышления Gemini (1–5, влияет на качество и скорость)",
-                validator=loader.validators.Range(1, 5),  # Использование Range для диапазона
+                validator=loader.validators.Range(1, 5),  # Используем Range для диапазона
             ),
         )
 
