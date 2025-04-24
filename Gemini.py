@@ -52,13 +52,13 @@ class gemini(loader.Module):
                 "temperature",
                 0.7,
                 "Температура (от 0 до 1, влияет на креативность)",
-                validator=loader.validators.Float(min=0.0, max=1.0),
+                validator=loader.validators.Float(),
             ),
             loader.ConfigValue(
                 "top_p",
                 0.95,
                 "Top-p (от 0 до 1, контролирует случайность)",
-                validator=loader.validators.Float(min=0.0, max=1.0),
+                validator=loader.validators.Float(),
             ),
             loader.ConfigValue(
                 "top_k",
@@ -160,7 +160,6 @@ class gemini(loader.Module):
 
             reply_text = response.text.strip()
 
-            # Разбиваем длинный ответ на части
             max_length = 4096
             header = "<emoji document_id=5325547803936572038>✨</emoji> <b>Ответ от Gemini:</b>\n\n"
             parts = [reply_text[i:i + max_length - len(header)] for i in range(0, len(reply_text), max_length - len(header))]
