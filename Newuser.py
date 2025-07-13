@@ -1,5 +1,5 @@
 # meta developer: @Hikimuro
-# ver 1.0.0
+# ver 1.0.1
 # scope: hikka_only
 
 from .. import loader, utils
@@ -18,7 +18,8 @@ class WelcomeModule(loader.Module):
             loader.ConfigValue(
                 "welcome_chat",
                 None,
-                "ID чата для отправки сообщения"
+                "ID чата для отправки сообщения. "
+                "Узнать ID можно командой `.chatid` внутри нужного чата."
             ),
             loader.ConfigValue(
                 "welcome_text",
