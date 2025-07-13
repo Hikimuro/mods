@@ -1,5 +1,5 @@
 # meta developer: @Hikimuro
-# ver 1.0.1
+# ver. 1.0.3
 # scope: hikka_only
 
 from .. import loader, utils
@@ -9,9 +9,7 @@ from telethon.events import ChatAction
 class WelcomeModule(loader.Module):
     """Приветственное сообщение новым участникам"""
 
-    strings = {
-        "name": "WelcomeMessage"
-    }
+    strings = {"name": "WelcomeMessage"}
 
     def __init__(self):
         self.config = loader.ModuleConfig(
@@ -46,3 +44,15 @@ class WelcomeModule(loader.Module):
                     )
                 except Exception:
                     pass
+
+    @loader.command()
+    async def setwelcome(self, message):
+        """Настроить чат и текст приветствия. Используй: .setwelcome <текст>"""
+        args = utils.get_args_raw(message)
+        if not args:
+            await utils.answer(message, "Укажи текст приветствия.\nПример:\n.setwelcome Добро пожаловать!")
+            return
+
+        self.config["welcome_chat"] = str(message.chat_id)
+        self.config["welcome_text"] = args
+        await utils.answer(message, f"✅ Настроено!\nЧат: `{message.chat_id}`\nТекст: {args}")
