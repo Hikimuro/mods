@@ -1,6 +1,6 @@
 # meta developer: @FMHbJ
 # ver. 1.0.5
-# scope: hikka/heroku
+# scope: hikka_only
 
 from .. import loader, utils
 from telethon.events import ChatAction
@@ -11,7 +11,7 @@ import time
 class WelcomeModule(loader.Module):
     strings = {"name": "WelcomeMessage"}
 
-    def __init__(self):
+    def init(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue("welcome_chat", None, ""),
             loader.ConfigValue("welcome_text", "Добро пожаловать!", "")
@@ -43,8 +43,8 @@ class WelcomeModule(loader.Module):
                 self._last_sent = time.time()
             except Exception as err:
                 await utils.answer(e, f"Ошибка отправки: {err}")
-                
-                @loader.command()
+
+    @loader.command()
     async def setwelcome(self, m):
         """Настроить приветствие. Используй в чате:
 
@@ -60,4 +60,4 @@ class WelcomeModule(loader.Module):
         self._chat_id = cid
         self._text = args
 
-        await utils.answer(m, f"✅ Установлено для чата `{cid}`")
+        await utils.answer(m, f"✅ Установлено для чата {cid}")
