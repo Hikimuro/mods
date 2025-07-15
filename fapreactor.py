@@ -6,6 +6,8 @@ import cloudscraper
 import random
 import logging
 from bs4 import BeautifulSoup
+import aiohttp
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +70,19 @@ class FapReactorMod(loader.Module):
             if image_url.startswith("//"):
                 image_url = "https:" + image_url
 
-            await message.client.send_file(message.chat_id, image_url)
+            temp_file = "fapreactor_image.jpg"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as resp:
+                    if resp.status != 200:
+                        raise ValueError(f"Ошибка загрузки изображения: {resp.status}")
+                    data = await resp.read()
+                    with open(temp_file, "wb") as f:
+                        f.write(data)
+
+            await message.client.send_file(message.chat_id, temp_file)
             await message.delete()
+            os.remove(temp_file)
 
         except Exception as e:
             logger.exception("Ошибка при получении изображения с fapreactor")
