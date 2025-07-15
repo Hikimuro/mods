@@ -11,7 +11,7 @@ import time
 class WelcomeModule(loader.Module):
     strings = {"name": "WelcomeMessage"}
 
-    def init(self):
+    def __init__(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue("welcome_chat", None, ""),
             loader.ConfigValue("welcome_text", "Добро пожаловать!", "")
@@ -60,4 +60,4 @@ class WelcomeModule(loader.Module):
         self._chat_id = cid
         self._text = args
 
-        await utils.answer(m, f"✅ Установлено для чата {cid}")
+        await utils.answer(m, f"✅ Установлено для чата `{cid}`")
