@@ -1,4 +1,4 @@
-# ver. 1.0.2
+# ver. 1.0.7
 # meta developer: @Hikimuro
 
 from .. import loader, utils
@@ -51,20 +51,20 @@ class FapReactorMod(loader.Module):
         await message.edit(self.strings("downloading"))
 
         try:
-            page = random.randint(1, 10)
-            url = f"https://fapreactor.com/tag/{category}/all/{page}"
-            r = self.scraper.get(url, timeout=10)
-            r.raise_for_status()
-
-            soup = BeautifulSoup(r.text, "html.parser")
-            posts = soup.select("div.post_content div.image a img")
-
-            if not posts:
-                raise ValueError("Селектор div.post_content div.image a img не нашёл изображений.")
+            for _ in range(5):  # до 5 попыток
+                page = random.randint(1, 10)
+                url = f"https://fapreactor.com/tag/{category}/all/{page}"
+                r = self.scraper.get(url, timeout=10)
+                r.raise_for_status()
+                soup = BeautifulSoup(r.text, "html.parser")
+                posts = soup.select("div.image > a > img")
+                if posts:
+                    break
+            else:
+                raise ValueError("Не найдено изображений после 5 попыток.")
 
             images = [img["src"] for img in posts if "src" in img.attrs]
             image_url = random.choice(images)
-
             if image_url.startswith("//"):
                 image_url = "https:" + image_url
 
