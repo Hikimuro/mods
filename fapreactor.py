@@ -1,10 +1,13 @@
-# ver. 1.0.0
+# ver. 1.0.1
 # meta developer: @Hikimuro
 
 from .. import loader, utils
 import requests
 import random
+import logging
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 @loader.tds
 class FapReactorMod(loader.Module):
@@ -13,7 +16,7 @@ class FapReactorMod(loader.Module):
     strings = {
         "name": "FapReactor",
         "no_category": "❌ Категория не установлена. Используй .setfapcategory <категория>",
-        "not_found": "❌ Не удалось найти изображения.",
+        "not_found": "❌ Не удалось найти изображения.\n\nПричина: {}",
         "downloading": "🔍 Ищу изображение..."
     }
 
@@ -51,17 +54,20 @@ class FapReactorMod(loader.Module):
             url = f"https://fapreactor.cc/tag/{category}?page={page}"
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+
             soup = BeautifulSoup(r.text, "html.parser")
             posts = soup.select(".content .postContainer .post_content a img")
 
             if not posts:
-                await message.edit(self.strings("not_found"))
-                return
+                raise ValueError("Список изображений пуст. Возможно, сайт изменил структуру или использует защиту.")
 
             images = [img["src"] for img in posts if "src" in img.attrs]
             image_url = random.choice(images)
 
             await message.client.send_file(message.chat_id, image_url)
             await message.delete()
+
         except Exception as e:
-            await message.edit(f"❌ Ошибка: {e}")
+            logger.exception("Ошибка при получении изображения с fapreactor")
+            await message.edit(self.strings("not_found").format(str(e)))
