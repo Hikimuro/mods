@@ -1,4 +1,4 @@
-# ver. 1.0.1
+# ver. 1.0.2
 # meta developer: @Hikimuro
 
 from .. import loader, utils
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 @loader.tds
 class FapReactorMod(loader.Module):
-    """Отправляет случайное изображение с fapreactor.cc по категории"""
+    """Отправляет случайное изображение с fapreactor.com по категории"""
 
     strings = {
         "name": "FapReactor",
@@ -25,7 +25,7 @@ class FapReactorMod(loader.Module):
             loader.ConfigValue(
                 "category", 
                 None, 
-                lambda: "Раздел с fapreactor.cc (например: hentai, porn, ero и т.д.)"
+                lambda: "Раздел с fapreactor.com (например: hentai, porn и т.д.)"
             )
         )
         self.scraper = cloudscraper.create_scraper()
@@ -42,7 +42,7 @@ class FapReactorMod(loader.Module):
 
     @loader.command()
     async def fap(self, message):
-        """Отправляет рандомное изображение с fapreactor.cc"""
+        """Отправляет рандомное изображение с fapreactor.com"""
         category = self.get("category")
         if not category:
             await message.edit(self.strings("no_category"))
@@ -51,19 +51,22 @@ class FapReactorMod(loader.Module):
         await message.edit(self.strings("downloading"))
 
         try:
-            page = random.randint(1, 20)
-            url = f"https://fapreactor.cc/tag/{category}?page={page}"
+            page = random.randint(1, 10)
+            url = f"https://fapreactor.com/tag/{category}/all/{page}"
             r = self.scraper.get(url, timeout=10)
             r.raise_for_status()
 
             soup = BeautifulSoup(r.text, "html.parser")
-            posts = soup.select(".content .postContainer .post_content a img")
+            posts = soup.select("div.post_content div.image a img")
 
             if not posts:
-                raise ValueError("Список изображений пуст. Возможно, структура изменилась или Cloudflare не пропустил.")
+                raise ValueError("Селектор div.post_content div.image a img не нашёл изображений.")
 
             images = [img["src"] for img in posts if "src" in img.attrs]
             image_url = random.choice(images)
+
+            if image_url.startswith("//"):
+                image_url = "https:" + image_url
 
             await message.client.send_file(message.chat_id, image_url)
             await message.delete()
