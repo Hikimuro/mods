@@ -43,9 +43,13 @@ class WelcomeModule(loader.Module):
                 self._last_sent = time.time()
             except Exception as err:
                 await utils.answer(e, f"Ошибка отправки: {err}")
-
-    @loader.command()
+                
+                @loader.command()
     async def setwelcome(self, m):
+        """Настроить приветствие. Используй в чате:
+
+.setwelcome Текст приветствия
+"""
         args = utils.get_args_raw(m)
         if not args:
             return await utils.answer(m, "Укажи текст приветствия.")
