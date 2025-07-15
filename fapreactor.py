@@ -2,7 +2,7 @@
 # meta developer: @Hikimuro
 
 from .. import loader, utils
-import requests
+import cloudscraper
 import random
 import logging
 from bs4 import BeautifulSoup
@@ -28,6 +28,7 @@ class FapReactorMod(loader.Module):
                 lambda: "Раздел с fapreactor.cc (например: hentai, porn, ero и т.д.)"
             )
         )
+        self.scraper = cloudscraper.create_scraper()
 
     @loader.command()
     async def setfapcategory(self, message):
@@ -52,15 +53,14 @@ class FapReactorMod(loader.Module):
         try:
             page = random.randint(1, 20)
             url = f"https://fapreactor.cc/tag/{category}?page={page}"
-            headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.get(url, headers=headers, timeout=10)
+            r = self.scraper.get(url, timeout=10)
             r.raise_for_status()
 
             soup = BeautifulSoup(r.text, "html.parser")
             posts = soup.select(".content .postContainer .post_content a img")
 
             if not posts:
-                raise ValueError("Список изображений пуст. Возможно, сайт изменил структуру или использует защиту.")
+                raise ValueError("Список изображений пуст. Возможно, структура изменилась или Cloudflare не пропустил.")
 
             images = [img["src"] for img in posts if "src" in img.attrs]
             image_url = random.choice(images)
