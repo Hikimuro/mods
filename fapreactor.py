@@ -73,7 +73,12 @@ class FapReactorMod(loader.Module):
 
             temp_file = "fapreactor_image.jpg"
 
-            async with aiohttp.ClientSession() as session:
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://fapreactor.com/"
+            }
+
+            async with aiohttp.ClientSession(headers=headers) as session:
                 async with session.get(image_url) as resp:
                     if resp.status != 200:
                         raise ValueError(f"Ошибка загрузки изображения: {resp.status}")
