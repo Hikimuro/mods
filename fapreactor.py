@@ -1,5 +1,6 @@
-# ver. 1.0.7
+# scope: user
 # meta developer: @Hikimuro
+# ver: 1.0.7
 
 from .. import loader, utils
 import cloudscraper
