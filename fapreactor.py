@@ -1,6 +1,6 @@
 # scope: user
 # meta developer: @Hikimuro
-# ver: 1.0.9
+# ver: 2.0.0
 
 from .. import loader, utils
 import cloudscraper
@@ -13,7 +13,9 @@ import os
 logger = logging.getLogger(__name__)
 
 AVAILABLE_CATEGORIES = [
-    "hentai", "porn", "milf", "anal", "teen", "futa", "3d", "bdsm", "yaoi", "yuri"
+    "PornOral", "PornVaginal", "PornToys", "PernAnal", "FornSollo", "FernGroup",
+    "PornLesbians", "PornHandjob", "PornFutanari", "Porn", "Hentai",
+    "shemale", "Newhalf", "footfetish", "Femdom", "изврат"
 ]
 
 @loader.tds
@@ -31,8 +33,8 @@ class FapReactorMod(loader.Module):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "category",
-                "hentai",
-                lambda: "Категория (например: {})".format(", ".join(AVAILABLE_CATEGORIES))
+                "Porn",
+                lambda: "Категория с fapreactor.com (доступные: {})".format(", ".join(AVAILABLE_CATEGORIES))
             )
         )
         self.scraper = cloudscraper.create_scraper()
