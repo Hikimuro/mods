@@ -1,6 +1,6 @@
 # scope: user
 # meta developer: @Hikimuro
-# ver: 1.0.7
+# ver: 1.0.9
 
 from .. import loader, utils
 import cloudscraper
@@ -11,6 +11,10 @@ import aiohttp
 import os
 
 logger = logging.getLogger(__name__)
+
+AVAILABLE_CATEGORIES = [
+    "hentai", "porn", "milf", "anal", "teen", "futa", "3d", "bdsm", "yaoi", "yuri"
+]
 
 @loader.tds
 class FapReactorMod(loader.Module):
@@ -25,10 +29,11 @@ class FapReactorMod(loader.Module):
 
     def __init__(self):
         self.config = loader.ModuleConfig(
-            loader.ConfigValue(
-                "category", 
-                None, 
-                lambda: "Раздел с fapreactor.com (например: hentai, porn и т.д.)"
+            loader.ConfigValueChoice(
+                "category",
+                "hentai",
+                lambda: "Выбор категории с fapreactor.com",
+                choices=AVAILABLE_CATEGORIES
             )
         )
         self.scraper = cloudscraper.create_scraper()
@@ -40,13 +45,16 @@ class FapReactorMod(loader.Module):
         if not args:
             await message.edit("⚠️ Укажи категорию.")
             return
-        self.set("category", args)
+        if args not in AVAILABLE_CATEGORIES:
+            await message.edit(f"❌ Категория `{args}` недоступна.\nДоступные: {', '.join(AVAILABLE_CATEGORIES)}")
+            return
+        self.config["category"] = args
         await message.edit(f"✅ Категория установлена на: `{args}`")
 
     @loader.command()
     async def fap(self, message):
         """Отправляет рандомное изображение с fapreactor.com"""
-        category = self.get("category")
+        category = self.config["category"]
         if not category:
             await message.edit(self.strings("no_category"))
             return
@@ -54,8 +62,8 @@ class FapReactorMod(loader.Module):
         await message.edit(self.strings("downloading"))
 
         try:
-            for _ in range(5):  # до 5 попыток
-                page = random.randint(1, 10)
+            for _ in range(5):
+                page = random.randint(1, 1000)
                 url = f"https://fapreactor.com/tag/{category}/all/{page}"
                 r = self.scraper.get(url, timeout=10)
                 r.raise_for_status()
