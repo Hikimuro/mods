@@ -13,10 +13,10 @@ import os
 logger = logging.getLogger(__name__)
 
 AVAILABLE_CATEGORIES = [
-    "PornOral", "PornVaginal", "PornToys", "Porngroup",
-    "PornLesbians", "PornHandjob", "PornFutanari", "Porn", "Hentai",
-    "shemale", "Newhalf", "footfetish", "Femdom", "изврат", "milf",
-    "anal", "teen", "bdsm", "yaoi", "yuri"
+    "Oral", "Vaginal", "Sex Toys", "Group",
+    "Lesbian", "Handjob", "Futanari", "Porn", "Hentai",
+    "Shemale", "Newhalf", "Footfetish", "Femdom", "Milf",
+    "Anal", "Teen", "Bdsm", "Yaoi", "Yuri", "Guro"
 ]
 
 @loader.tds
