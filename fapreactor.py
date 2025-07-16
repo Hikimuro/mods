@@ -29,11 +29,10 @@ class FapReactorMod(loader.Module):
 
     def __init__(self):
         self.config = loader.ModuleConfig(
-            loader.ConfigValueChoice(
+            loader.ConfigValue(
                 "category",
                 "hentai",
-                lambda: "Выбор категории с fapreactor.com",
-                choices=AVAILABLE_CATEGORIES
+                lambda: "Категория (например: {})".format(", ".join(AVAILABLE_CATEGORIES))
             )
         )
         self.scraper = cloudscraper.create_scraper()
@@ -43,7 +42,7 @@ class FapReactorMod(loader.Module):
         """Устанавливает категорию (раздел)"""
         args = utils.get_args_raw(message)
         if not args:
-            await message.edit("⚠️ Укажи категорию.")
+            await message.edit("⚠️ Укажи категорию.\nДоступные: " + ", ".join(AVAILABLE_CATEGORIES))
             return
         if args not in AVAILABLE_CATEGORIES:
             await message.edit(f"❌ Категория `{args}` недоступна.\nДоступные: {', '.join(AVAILABLE_CATEGORIES)}")
