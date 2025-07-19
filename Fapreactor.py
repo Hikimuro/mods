@@ -51,23 +51,23 @@ FapReactor:
         """Устанавливает категорию (раздел)"""
         args = utils.get_args_raw(message)
         if not args:
-            await message.edit("⚠️ Укажи категорию.\nДоступные: " + ", ".join(AVAILABLE_CATEGORIES))
+            await utils.answer(message, "⚠️ Укажи категорию.\nДоступные: " + ", ".join(AVAILABLE_CATEGORIES))
             return
         if args not in AVAILABLE_CATEGORIES:
-            await message.edit(f"❌ Категория `{args}` недоступна.\nДоступные: {', '.join(AVAILABLE_CATEGORIES)}")
+            await utils.answer(message, f"❌ Категория `{args}` недоступна.\nДоступные: {', '.join(AVAILABLE_CATEGORIES)}")
             return
         self.config["category"] = args
-        await message.edit(f"✅ Категория установлена на: `{args}`")
+        await utils.answer(message, f"✅ Категория установлена на: `{args}`")
 
     @loader.command()
     async def fap(self, message):
         """Отправляет рандомное изображение с fapreactor.com"""
         category = self.config["category"]
         if not category:
-            await message.edit(self.strings("no_category"))
+            await utils.answer(message, self.strings("no_category"))
             return
 
-        await message.edit(self.strings("downloading"))
+        await utils.answer(message, self.strings("downloading"))
 
         try:
             for _ in range(5):
@@ -102,13 +102,10 @@ FapReactor:
                     with open(temp_file, "wb") as f:
                         f.write(data)
 
-            await message.client.send_file(
-                message.chat_id,
-                temp_file
-            )
+            await message.client.send_file(message.chat_id, temp_file)
             await message.delete()
             os.remove(temp_file)
 
         except Exception as e:
             logger.exception("Ошибка при получении изображения с fapreactor")
-            await message.edit(self.strings("not_found").format(str(e)))
+            await utils.answer(message, self.strings("not_found").format(str(e)))
