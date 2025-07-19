@@ -6,6 +6,11 @@ from telethon.tl.types import Message
 import os
 import asyncio
 
+__meta__ = {
+    "name": "ForwardHidden",
+    "developer": "@Hikimuro"
+}
+
 @loader.tds
 class ForwardHiddenMod(loader.Module):
     """Копирует сообщения из других чатов/каналов, включая закрытые"""
@@ -18,6 +23,32 @@ class ForwardHiddenMod(loader.Module):
         "getid_fail": "❌ Не удалось получить chat_id: {}",
         "usage": "<b>Использование:</b> <code>.fh 1655808918 20</code>\n❓ Чтобы узнать chat_id: используй .listch или .getid",
     }
+
+    async def send_message(self, message, msg):
+        text = msg.text or ""
+        sender = await msg.get_sender()
+        author = f"\n\n👤 <b>От:</b> {getattr(sender, 'first_name', 'неизвестно')}"
+
+        try:
+            if msg.media:
+                file = await message.client.download_media(msg.media)
+                await message.client.send_file(
+                    message.chat_id,
+                    file,
+                    caption=text + author if text else author,
+                )
+                if file and os.path.exists(file):
+                    try:
+                        os.remove(file)
+                    except Exception:
+                        pass
+            else:
+                await message.client.send_message(
+                    message.chat_id,
+                    text + author
+                )
+        except Exception as e:
+            await utils.answer(message, self.strings("send_failed").format(e))
 
     @loader.command()
     async def fh(self, message: Message):
@@ -54,32 +85,14 @@ class ForwardHiddenMod(loader.Module):
 
         await utils.answer(message, self.strings("sending", message).format(len(msgs)))
 
-        for msg in reversed(msgs):
-            text = msg.text or ""
-            sender = await msg.get_sender()
-            author = f"\n\n👤 <b>От:</b> {getattr(sender, 'first_name', 'неизвестно')}"
+        semaphore = asyncio.Semaphore(3)
 
-            try:
-                if msg.media:
-                    file = await message.client.download_media(msg.media)
-                    await message.client.send_file(
-                        message.chat_id,
-                        file,
-                        caption=text + author if text else author,
-                    )
-                    # Удаляем временный файл, если существует
-                    if file and os.path.exists(file):
-                        try:
-                            os.remove(file)
-                        except Exception:
-                            pass
-                else:
-                    await message.client.send_message(
-                        message.chat_id,
-                        text + author
-                    )
-            except Exception as e:
-                await utils.answer(message, self.strings("send_failed", message).format(e))
+        async def sem_send(msg):
+            async with semaphore:
+                await self.send_message(message, msg)
+
+        tasks = [asyncio.create_task(sem_send(msg)) for msg in reversed(msgs)]
+        await asyncio.gather(*tasks)
 
         await utils.answer(message, self.strings("done", message))
 
