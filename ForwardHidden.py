@@ -1,18 +1,18 @@
+# 🔧 Module: ForwardHidden
+# 👤 Developer: @Hikimuro
+# 🧩 Version: 1.0.1
+
 from telethon.tl.types import Message, Channel
 from .. import loader, utils
+import os
 
 @loader.tds
 class ForwardHiddenMod(loader.Module):
-    """
-▫️ -fh <chat_id> <кол-во> — копировать сообщения в текущий чат
-▫️ -getid [username или пусто] — получить chat_id канала, группы или чата
-▫️ -listch — показать список каналов и супергрупп, где ты подписан
-    """
-
     strings = {"name": "ForwardHidden"}
 
     @loader.command()
     async def getid(self, message: Message):
+        """[username или пусто] — получить chat_id канала, группы или чата"""
         args = utils.get_args_raw(message)
         if args:
             try:
@@ -28,6 +28,7 @@ class ForwardHiddenMod(loader.Module):
 
     @loader.command()
     async def listch(self, message: Message):
+        """Показать список каналов и супергрупп, где ты подписан"""
         dialogs = await message.client.get_dialogs()
         lines = []
         ids = set()
@@ -51,6 +52,7 @@ class ForwardHiddenMod(loader.Module):
 
     @loader.command()
     async def fh(self, message: Message):
+        """<chat_id> <кол-во> — копировать сообщения в текущий чат (обход запрета пересылки)"""
         args = utils.get_args_raw(message)
         if not args or len(args.split()) < 2:
             return await utils.answer(
@@ -89,22 +91,25 @@ class ForwardHiddenMod(loader.Module):
 
         for msg in reversed(msgs):
             text = msg.text or ""
-            markup = msg.reply_markup
             sender = await msg.get_sender()
             author = f"\n\n👤 <b>От:</b> {getattr(sender, 'first_name', 'неизвестно')}"
 
-            if msg.media:
-                await message.client.send_file(
-                    message.chat_id,
-                    msg.media,
-                    caption=text + author,
-                    reply_markup=markup
-                )
-            else:
-                await message.client.send_message(
-                    message.chat_id,
-                    text + author,
-                    reply_markup=markup
-                )
+            try:
+                if msg.media:
+                    file_path = await message.client.download_media(msg.media)
+                    await message.client.send_file(
+                        message.chat_id,
+                        file_path,
+                        caption=text + author if text else author,
+                    )
+                    if file_path and os.path.exists(file_path):
+                        os.remove(file_path)
+                else:
+                    await message.client.send_message(
+                        message.chat_id,
+                        text + author
+                    )
+            except Exception as e:
+                await utils.answer(message, f"⚠️ Не удалось отправить сообщение: {e}")
 
         await utils.answer(message, "✅ Готово.")
