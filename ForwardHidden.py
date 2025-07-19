@@ -1,5 +1,6 @@
 # module ForwardHidden
-# meta developer @Hikimuro, @kf_ic3peak
+# meta developer @Hikimuro
+# meta developer @kf_ic3peak
 # ver. 2.0.0
 
 import logging
