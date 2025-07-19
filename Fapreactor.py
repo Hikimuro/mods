@@ -104,8 +104,7 @@ FapReactor:
 
             await message.client.send_file(
                 message.chat_id,
-                temp_file,
-                mime_type="image/jpeg"
+                temp_file
             )
             await message.delete()
             os.remove(temp_file)
