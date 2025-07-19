@@ -103,7 +103,6 @@ class ForwardHiddenMod(loader.Module):
                         sent_count += 1
                         os.remove(item['path'])
 
-                # Обновление прогресса
                 if progress_msg:
                     await progress_msg.edit(f"📤 Отправка {i} из {total}...")
 
@@ -159,24 +158,20 @@ class ForwardHiddenMod(loader.Module):
                 if msg and (msg.text or msg.media):
                     messages.append(msg)
 
-            if not messages:
-                await utils.answer(progress_msg, self.strings["no_messages"])
-                return
-
-            messages.reverse()
 
             session_dir = tempfile.mkdtemp(prefix="fh_", suffix="_" + uuid.uuid4().hex[:6])
             all_saved_items = []
             for i, msg in enumerate(messages, 1):
-                saved = await self.download_and_save(msg, i, session_dir)
-                all_saved_items.extend(saved)
+                saved_items = await self.download_and_save(msg, i, session_dir)
+                all_saved_items.extend(saved_items)
                 await asyncio.sleep(0.1)
 
             sent_count = await self.send_saved_content(all_saved_items, message.chat_id, progress_msg)
 
             await progress_msg.edit(self.strings["success"].format(sent_count))
+
         except Exception as e:
-            logger.error(f"Общая ошибка: {e}")
+            logger.error(f"Общая ошибка fh: {e}")
             await utils.answer(message, self.strings["error"].format(str(e)))
         finally:
             if 'session_dir' in locals() and os.path.exists(session_dir):
