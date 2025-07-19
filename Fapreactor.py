@@ -1,6 +1,6 @@
 # scope: user
 # meta developer: @Hikimuro
-# ver: 2.0.1
+# ver: 2.0.2
 
 from .. import loader, utils
 import cloudscraper
@@ -39,9 +39,23 @@ FapReactor:
                 "category",
                 "Porn",
                 lambda: "Категория с fapreactor.com (доступные: {})".format(", ".join(AVAILABLE_CATEGORIES))
+            ),
+            loader.ConfigValue(
+                "proxy",
+                None,
+                lambda: "Прокси в формате http://user:pass@ip:port или http://ip:port"
             )
         )
-        self.scraper = cloudscraper.create_scraper()
+        self.scraper = None  # инициализируем позже
+
+    def _init_scraper(self):
+        proxy = self.config.get("proxy")
+        return cloudscraper.create_scraper(
+            browser={'custom': 'ScraperBot/1.0'},
+            interpreter='nodejs',
+            delay=10,
+            proxy={'http': proxy, 'https': proxy} if proxy else None
+        )
 
     @loader.command()
     async def setfapcategory(self, message):
@@ -67,10 +81,11 @@ FapReactor:
         await utils.answer(message, self.strings("downloading"))
 
         try:
+            scraper = self._init_scraper()
             for _ in range(5):
                 page = random.randint(1, 1000)
                 url = f"https://fapreactor.com/tag/{category}/all/{page}"
-                r = self.scraper.get(url, timeout=10)
+                r = scraper.get(url, timeout=10)
                 r.raise_for_status()
                 soup = BeautifulSoup(r.text, "html.parser")
                 posts = soup.select("div.image > a > img")
@@ -91,8 +106,10 @@ FapReactor:
                 "Referer": "https://fapreactor.com/"
             }
 
+            proxy = self.config.get("proxy")
+
             async with aiohttp.ClientSession(headers=headers) as session:
-                async with session.get(image_url) as resp:
+                async with session.get(image_url, proxy=proxy) as resp:
                     if resp.status != 200:
                         raise ValueError(f"Ошибка загрузки изображения: {resp.status}")
                     data = await resp.read()
