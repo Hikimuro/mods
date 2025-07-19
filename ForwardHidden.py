@@ -1,8 +1,4 @@
-# 🔧 Module: ForwardHidden
-# 👤 Developer: @Hikimuro
-# 🧩 Version: 1.0.0
-
-from telethon.tl.types import Message
+from telethon.tl.types import Message, Channel
 from .. import loader, utils
 
 @loader.tds
@@ -17,7 +13,6 @@ class ForwardHiddenMod(loader.Module):
 
     @loader.command()
     async def getid(self, message: Message):
-        """[username] — получить chat_id канала, группы или чата"""
         args = utils.get_args_raw(message)
         if args:
             try:
@@ -33,13 +28,17 @@ class ForwardHiddenMod(loader.Module):
 
     @loader.command()
     async def listch(self, message: Message):
-        """Показать список каналов и супергрупп, где ты подписан"""
         dialogs = await message.client.get_dialogs()
         lines = []
+        ids = set()
         for d in dialogs:
             entity = d.entity
-            if getattr(entity, 'megagroup', False) or getattr(entity, 'broadcast', False):
+            if isinstance(entity, Channel) and (entity.megagroup or entity.broadcast):
                 chat_id = entity.id
+                if chat_id in ids:
+                    continue
+                ids.add(chat_id)
+
                 title = entity.title or "—"
                 lines.append(f"{title}\n🆔 <code>{chat_id}</code>\n")
 
@@ -52,25 +51,36 @@ class ForwardHiddenMod(loader.Module):
 
     @loader.command()
     async def fh(self, message: Message):
-        """<chat_id> <кол-во> — копировать сообщения в текущий чат"""
         args = utils.get_args_raw(message)
         if not args or len(args.split()) < 2:
             return await utils.answer(
                 message,
-                "<b>Использование:</b> <code>.fh -1001234567890 20</code>\n"
+                "<b>Использование:</b> <code>.fh 1655808918 20</code>\n"
                 "❓ Чтобы узнать chat_id: используй .listch или .getid"
             )
 
-        chat_id, count = args.split()
+        chat_id_str, count_str = args.split()
         try:
-            count = int(count)
+            count = int(count_str)
         except ValueError:
             return await utils.answer(message, "⚠️ Укажи число сообщений.")
 
+        try:
+            chat_id = int(chat_id_str)
+        except Exception:
+            try:
+                entity = await message.client.get_entity(chat_id_str)
+                chat_id = entity.id
+            except Exception as e:
+                return await utils.answer(message, f"❌ Не удалось получить chat_id: {e}")
+
         msgs = []
-        async for msg in message.client.iter_messages(chat_id, limit=count):
-            if msg.text or msg.media:
-                msgs.append(msg)
+        try:
+            async for msg in message.client.iter_messages(chat_id, limit=count):
+                if msg.text or msg.media:
+                    msgs.append(msg)
+        except Exception as e:
+            return await utils.answer(message, f"❌ Ошибка при получении сообщений: {e}")
 
         if not msgs:
             return await utils.answer(message, "❌ Нет сообщений.")
