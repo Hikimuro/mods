@@ -24,9 +24,6 @@ class FapReactorMod(loader.Module):
     """
 FapReactor:
  Отправляет случайное NSFW изображение с fapreactor.com по категории
-
-▫️ -fap Отправляет рандомное NSFW изображение с fapreactor.com  
-▫️ -setfapcategory Устанавливает категорию (раздел)
     """
 
     strings = {
