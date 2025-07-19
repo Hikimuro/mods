@@ -1,15 +1,12 @@
 # module ForwardHidden
 # meta developer @Hikimuro
+# ver. 1.0.4
 
 from .. import loader, utils
 from telethon.tl.types import Message
 import os
 import asyncio
 
-__meta__ = {
-    "name": "ForwardHidden",
-    "developer": "@Hikimuro"
-}
 
 @loader.tds
 class ForwardHiddenMod(loader.Module):
@@ -60,6 +57,8 @@ class ForwardHiddenMod(loader.Module):
         chat_id_str, count_str = args.split()
         try:
             count = int(count_str)
+            if count <= 0:
+                return await utils.answer(message, "⚠️ Количество сообщений должно быть положительным числом.")
         except ValueError:
             return await utils.answer(message, "⚠️ Укажи число сообщений.")
 
@@ -75,7 +74,7 @@ class ForwardHiddenMod(loader.Module):
         msgs = []
         try:
             async for msg in message.client.iter_messages(chat_id, limit=count):
-                if msg.text or msg.media:
+                if msg and (msg.text or msg.media):
                     msgs.append(msg)
         except Exception as e:
             return await utils.answer(message, f"❌ Ошибка при получении сообщений: {e}")
