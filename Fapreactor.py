@@ -46,16 +46,20 @@ FapReactor:
                 lambda: "Прокси в формате http://user:pass@ip:port или http://ip:port"
             )
         )
-        self.scraper = None  # инициализируем позже
 
     def _init_scraper(self):
-        proxy = self.config.get("proxy")
-        return cloudscraper.create_scraper(
+        scraper = cloudscraper.create_scraper(
             browser={'custom': 'ScraperBot/1.0'},
             interpreter='nodejs',
-            delay=10,
-            proxy={'http': proxy, 'https': proxy} if proxy else None
+            delay=10
         )
+        proxy = self.config.get("proxy")
+        if proxy:
+            scraper.proxies.update({
+                "http": proxy,
+                "https": proxy
+            })
+        return scraper
 
     @loader.command()
     async def setfapcategory(self, message):
